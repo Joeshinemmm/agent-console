@@ -2,6 +2,11 @@
 
 Versioned AI agent JSONL 이벤트를 실행 타임라인과 component 상태로 보여주는 독립 Terminal UI.
 
+처음 사용한다면 [설치와 사용 안내서 (HTML)](docs/getting-started.html)를 따라 해보세요.
+Windows PowerShell과 macOS/Linux의 설치, 샘플 실행, 화면 읽기, 실제 Agent 연결 방법을 설명합니다.
+다운로드한 저장소에서 HTML 파일을 브라우저로 열면 안내 화면을 볼 수 있습니다.
+GitHub에서는 HTML 소스가 표시되며, 별도의 웹 주소로 배포된 페이지는 아닙니다.
+
 ## Why
 
 AI agent의 작업 흐름을 파악하려면 관찰 가능한 실행 기록이 필요합니다. Agent Console은

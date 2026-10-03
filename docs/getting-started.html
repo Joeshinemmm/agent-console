@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Agent Console 설치부터 샘플 실행, 화면 읽기, 실제 JSONL 연결까지 따라 하는 안내서">
+  <title>설치와 사용 안내 · Agent Console</title>
+  <style>
+    :root { color-scheme: light; --ink: #182b36; --muted: #526571; --line: #d9e3e6; --accent: #09695b; --paper: #fff; --bg: #f3f6f5; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; line-height: 1.8; word-break: keep-all; overflow-wrap: anywhere; }
+    a { color: var(--accent); text-underline-offset: 4px; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid #bd7212; outline-offset: 4px; }
+    .skip { position: absolute; top: -100px; left: 20px; padding: 10px; background: white; z-index: 5; }
+    .skip:focus { top: 10px; }
+    .shell { max-width: 1180px; margin: auto; padding: 0 32px; }
+    header { border-bottom: 1px solid var(--line); background: var(--paper); }
+    .brand { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 22px 0; font-size: 13px; letter-spacing: .08em; }
+    .brand strong { letter-spacing: .14em; }
+    .badge { padding: 3px 10px; border: 1px solid var(--line); border-radius: 20px; color: var(--muted); white-space: nowrap; }
+    .hero { padding: 52px 0 38px; max-width: 860px; }
+    .eyebrow { color: var(--accent); font-size: 12px; font-weight: 750; letter-spacing: .13em; }
+    h1 { font-size: clamp(32px, 5vw, 48px); line-height: 1.3; letter-spacing: -.045em; margin: 12px 0 18px; }
+    .lead { max-width: 720px; font-size: 18px; color: var(--muted); }
+    .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 26px; font-size: 14px; }
+    .flow span { padding: 7px 14px; background: #e8f3ee; color: #185c4c; border-radius: 6px; }
+    .layout { display: grid; grid-template-columns: 195px minmax(0, 1fr); gap: 48px; padding-top: 36px; padding-bottom: 60px; }
+    aside nav { position: sticky; top: 24px; }
+    nav p { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+    nav a { display: block; padding: 7px 0; color: var(--muted); text-decoration: none; font-size: 14px; }
+    nav a:hover { color: var(--accent); text-decoration: underline; }
+    main { min-width: 0; }
+    section { margin-bottom: 26px; padding: 30px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+    h2 { margin: 0 0 18px; font-size: 24px; letter-spacing: -.035em; line-height: 1.45; }
+    h2 .number { display: inline-block; color: var(--accent); font-size: 13px; letter-spacing: .05em; margin-right: 12px; vertical-align: middle; }
+    h3 { margin: 25px 0 8px; font-size: 17px; }
+    p { margin: 10px 0; }
+    ul, ol { padding-left: 23px; }
+    li { padding-left: 3px; margin: 6px 0; }
+    code, pre, kbd { font-family: ui-monospace, Consolas, "Liberation Mono", monospace; }
+    :not(pre) > code { background: #edf2f3; color: #284654; padding: 2px 5px; border-radius: 4px; font-size: .88em; overflow-wrap: anywhere; }
+    .command { margin: 14px 0; border: 1px solid #314653; border-radius: 8px; overflow: hidden; background: #142630; color: #e5f2ed; }
+    .command-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: #203540; color: #c2d4dc; font-size: 12px; }
+    pre { margin: 0; padding: 17px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; tab-size: 2; }
+    .copy { color: #e2f3eb; background: transparent; border: 1px solid #688087; border-radius: 4px; padding: 3px 9px; cursor: pointer; font: inherit; }
+    .copy:hover { background: #36515d; }
+    .note { padding: 13px 17px; background: #eef6f2; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; font-size: 14px; }
+    .note.warm { background: #fff7e9; border-color: #a16a13; }
+    .expected { color: var(--accent); font-size: 14px; }
+    .os-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+    .os-picker button { border: 1px solid var(--line); background: white; padding: 9px 14px; border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer; }
+    .os-picker button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: white; }
+    .js-ready[data-os="windows"] [data-platform="unix"], .js-ready[data-os="unix"] [data-platform="windows"] { display: none; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    td:first-child { min-width: 130px; font-weight: 650; }
+    kbd { display: inline-block; border: 1px solid #c9d5d9; border-bottom-width: 2px; background: #f4f7f7; border-radius: 4px; padding: 0 6px; font-size: 12px; }
+    details { border-top: 1px solid var(--line); padding: 15px 0; }
+    summary { cursor: pointer; font-weight: 650; }
+    .small { font-size: 13px; color: var(--muted); }
+    footer { padding: 20px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    #copy-status { min-height: 1.8em; font-size: 13px; color: var(--accent); }
+    @media (max-width: 800px) {
+      .shell { padding: 0 20px; }
+      .layout { grid-template-columns: 1fr; gap: 16px; padding-top: 20px; }
+      aside nav { position: static; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+      nav p { width: 100%; margin: 0; }
+      nav a { padding: 3px 0; }
+      section { padding: 23px; }
+      .hero { padding: 32px 0 26px; }
+    }
+    @media (max-width: 440px) { .shell { padding: 0 14px; } section { padding: 20px 16px; } .brand { font-size: 11px; } h2 { font-size: 21px; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      body { background: white; font-size: 11pt; }
+      .shell { max-width: none; padding: 0; }
+      aside, .os-picker, .copy, #copy-status, .skip { display: none !important; }
+      .layout { display: block; }
+      section { break-inside: avoid; padding: 18px; }
+      .command, .command-head { background: #f3f3f3; color: #111; }
+      .hero { padding: 20px 0; }
+    }
+  </style>
+</head>
+<body data-os="windows">
+  <a class="skip" href="#main">본문으로 이동</a>
+  <header>
+    <div class="shell">
+      <div class="brand"><strong>AGENT CONSOLE</strong><span class="badge">v0.1 · 시작 안내서</span></div>
+      <div class="hero">
+        <div class="eyebrow">INSTALL → REPLAY → OBSERVE</div>
+        <h1>설치하고, 샘플을 실행하고,<br>Agent의 작업 흐름을 확인하세요.</h1>
+        <p class="lead">Agent Console은 AI Agent가 보내는 실행 기록을 터미널 화면에 정리해 보여줍니다. 먼저 제공된 샘플로 익혀보세요. 실제 ai-agent나 API key 없이 시작할 수 있습니다.</p>
+        <div class="flow" aria-label="설치 및 사용 순서"><span>01 환경 준비</span>→<span>02 설치</span>→<span>03 샘플 실행</span>→<span>04 실제 연결</span></div>
+        <div class="os-picker" aria-label="명령어를 표시할 운영체제" hidden>
+          <button type="button" data-os-choice="windows" aria-pressed="true">Windows · PowerShell</button>
+          <button type="button" data-os-choice="unix" aria-pressed="false">macOS / Linux</button>
+        </div>
+        <p id="copy-status" role="status" aria-live="polite"></p>
+        <noscript><p class="small">JavaScript가 꺼져 있어 두 운영체제의 명령을 모두 표시합니다. 사용하는 운영체제의 명령만 실행하세요.</p></noscript>
+      </div>
+    </div>
+  </header>
+  <div class="shell layout">
+    <aside><nav aria-label="안내서 목차">
+      <p>GUIDE CONTENTS</p>
+      <a href="#prepare">01 · 시작 전 준비</a>
+      <a href="#install">02 · 설치하기</a>
+      <a href="#replay">03 · 첫 화면 띄우기</a>
+      <a href="#screen">04 · 화면 읽는 법</a>
+      <a href="#live">05 · 실시간으로 보기</a>
+      <a href="#connect">06 · 실제 Agent 연결</a>
+      <a href="#troubleshoot">문제 해결</a>
+      <a href="#development">개발용 설정</a>
+    </nav></aside>
+    <main id="main">
+      <section id="prepare">
+        <h2><span class="number">01</span>시작 전 준비</h2>
+        <ul>
+          <li><strong>Python 3.11 이상</strong>이 필요합니다. 이 프로젝트는 Python 3.13.15와 Textual 8.2.8에서 동작을 검증했습니다.</li>
+          <li>저장소를 clone하거나 다운로드한 뒤 압축을 풀어 <strong>agent-console 폴더에서 터미널을 여세요.</strong></li>
+          <li>최초 설치 시에는 패키지를 다운로드할 인터넷 연결이 필요합니다.</li>
+        </ul>
+        <p>Windows에서는 폴더를 연 뒤 우클릭 메뉴의 ‘터미널에서 열기’를 사용할 수 있습니다. 현재 폴더에 <code>pyproject.toml</code>, <code>src</code>, <code>tests</code>가 보이면 준비된 것입니다.</p>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell · Python 확인</div><pre><code>python --version</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · Python 확인</div><pre><code>python3 --version</code></pre></div>
+        <p class="note">아래 명령은 모두 <strong>저장소 최상위 폴더</strong>에서 실행하세요. 이미 설치를 마쳤다면 <a href="#replay">03 · 첫 화면 띄우기</a>로 이동하세요.</p>
+      </section>
+      <section id="install">
+        <h2><span class="number">02</span>설치하기</h2>
+        <p>명령을 한 줄씩 실행하세요. <strong>가상환경</strong>은 이 프로젝트가 사용할 Python과 패키지를 별도 폴더에 모으는 공간입니다.</p>
+        <h3>1. 프로젝트 전용 가상환경 만들기</h3>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell</div><pre><code>python -m venv .venv</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux</div><pre><code>python3 -m venv .venv</code></pre></div>
+        <h3>2. Agent Console 설치하기</h3>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell</div><pre><code>.\.venv\Scripts\python.exe -m pip install -e .</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux</div><pre><code>.venv/bin/python -m pip install -e .</code></pre></div>
+        <p class="small"><code>-e .</code>는 현재 폴더의 프로젝트를 설치합니다. 소스를 수정하면 다시 설치하지 않아도 반영됩니다. 이 안내서는 가상환경을 activate하지 않고 실행 파일의 위치를 직접 지정합니다.</p>
+        <h3>3. 설치 확인하기</h3>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell</div><pre><code>.\.venv\Scripts\agent-console.exe --help</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux</div><pre><code>.venv/bin/agent-console --help</code></pre></div>
+        <p class="expected">확인할 결과: 도움말에 <strong>replay</strong>와 <strong>run</strong> 명령이 보이면 설치 완료입니다.</p>
+      </section>
+      <section id="replay">
+        <h2><span class="number">03</span>첫 화면 띄우기</h2>
+        <p><strong>replay</strong>는 이미 저장된 이벤트 파일을 읽는 명령입니다. 아래 샘플은 가상 데이터이므로 실제 Agent 실행이나 credential 준비가 필요 없습니다.</p>
+        <h3>성공한 실행 살펴보기</h3>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell · 성공 샘플</div><pre><code>.\.venv\Scripts\agent-console.exe replay tests/fixtures/successful_developer_run.jsonl</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · 성공 샘플</div><pre><code>.venv/bin/agent-console replay tests/fixtures/successful_developer_run.jsonl</code></pre></div>
+        <p class="expected">확인할 결과: <strong>COMPLETED · Events 12 · Errors 0 · Elapsed 4.315s</strong></p>
+        <p>화면은 결과를 읽을 수 있도록 열린 상태로 유지됩니다. <kbd>q</kbd>를 눌러 닫은 다음 다른 명령을 실행하세요.</p>
+        <h3>실패한 실행도 확인하기</h3>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell · 실패 샘플</div><pre><code>.\.venv\Scripts\agent-console.exe replay tests/fixtures/failed_run.jsonl</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · 실패 샘플</div><pre><code>.venv/bin/agent-console replay tests/fixtures/failed_run.jsonl</code></pre></div>
+        <p class="expected">확인할 결과: <strong>FAILED · Events 8 · Errors 2</strong>. 샘플에 의도적으로 실패 이벤트가 들어 있습니다.</p>
+        <h3>필요할 때 붙이는 옵션</h3>
+        <div class="table-wrap"><table><thead><tr><th scope="col">옵션</th><th scope="col">언제 사용하나요?</th></tr></thead><tbody>
+          <tr><td><code>--delay 0.2</code></td><td>파일의 각 줄을 0.2초 간격으로 읽어 흐름을 천천히 봅니다. 기록된 시간에 맞춘 재생은 아닙니다.</td></tr>
+          <tr><td><code>--plain</code></td><td>전체 화면 대신 최종 텍스트 보고서를 출력하고 종료합니다.</td></tr>
+          <tr><td><code>--tui</code></td><td>대화형 터미널 화면을 명시적으로 사용합니다. stdin replay에는 사용할 수 없습니다.</td></tr>
+        </tbody></table></div>
+        <p>예를 들어 성공 샘플 명령 끝에 <code>--plain</code>을 붙이면 간단한 보고서로 확인할 수 있습니다.</p>
+      </section>
+      <section id="screen">
+        <h2><span class="number">04</span>화면 읽는 법</h2>
+        <div class="table-wrap"><table><thead><tr><th scope="col">화면 영역</th><th scope="col">의미</th></tr></thead><tbody>
+          <tr><td>Run 선택 / 상태</td><td>어떤 실행을 보고 있는지와 전체 결과를 표시합니다. 여러 run이 있으면 상단에서 선택합니다.</td></tr>
+          <tr><td>Timeline</td><td>실행 기록을 sequence 순서로 보여줍니다. 오류는 색상과 ERROR 문구로 구분합니다.</td></tr>
+          <tr><td>Components</td><td>Main, Developer, Codex, Test 등의 마지막 lifecycle 상태를 표시합니다.</td></tr>
+          <tr><td>Current activity</td><td>가장 최근의 non-run 이벤트를 작업 설명으로 보여줍니다.</td></tr>
+          <tr><td>Run summary</td><td>기록된 경과 시간, 이벤트 수, 오류 수, 전체 결과를 요약합니다. Issues는 입력·관측 진단 수입니다.</td></tr>
+        </tbody></table></div>
+        <p><kbd>Tab</kbd> 영역 이동 · <kbd>↑</kbd> <kbd>↓</kbd> 목록 탐색 · <kbd>q</kbd> 종료 · <kbd>Ctrl</kbd> + <kbd>C</kbd> 중단</p>
+        <p class="note">어떤 component가 실패해도 재시도 후 run 전체는 성공할 수 있습니다. 전체 결과는 <code>run.completed</code>, <code>run.failed</code>, <code>run.cancelled</code>를 기준으로 판단합니다. 종료 이벤트가 없으면 <strong>Incomplete</strong>로 표시합니다.</p>
+        <p class="small">권장 터미널 크기는 80열 × 24행 이상입니다. Elapsed는 이벤트에 기록된 시간이며 replay를 기다린 실제 시간과는 다릅니다.</p>
+      </section>
+      <section id="live">
+        <h2><span class="number">05</span>실시간으로 보기</h2>
+        <p><strong>run</strong>은 외부 명령을 실행하고 그 명령의 stdout에서 JSONL 이벤트를 받습니다. 먼저 샘플을 한 줄씩 내보내는 예제 프로그램으로 연결을 확인하세요.</p>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell · 실시간 샘플</div><pre><code>.\.venv\Scripts\agent-console.exe run -- .\.venv\Scripts\python.exe -u examples/emit_fixture.py tests/fixtures/successful_developer_run.jsonl</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · 실시간 샘플</div><pre><code>.venv/bin/agent-console run -- .venv/bin/python -u examples/emit_fixture.py tests/fixtures/successful_developer_run.jsonl</code></pre></div>
+        <p class="expected">이벤트가 차례로 나타나고 마지막에 <strong>COMPLETED / Process exit 0</strong>이 표시됩니다. <kbd>q</kbd>로 화면을 닫으세요.</p>
+        <p><code>--</code> 앞은 Agent Console의 옵션, 뒤는 실행할 외부 명령입니다. Python의 <code>-u</code>는 출력을 모아두지 않고 바로 전달하도록 합니다.</p>
+      </section>
+      <section id="connect">
+        <h2><span class="number">06</span>실제 Agent 연결하기</h2>
+        <p>샘플이 정상 동작하면 외부 프로그램의 <strong>공개 JSONL 출력 명령</strong>으로 교체하세요. ai-agent마다 실행 옵션이 다를 수 있어 여기서는 특정 CLI 옵션을 가정하지 않습니다.</p>
+        <div class="command" data-platform="windows"><div class="command-head">명령 형식 · 꺾쇠 부분은 실제 값으로 교체</div><pre><code>.\.venv\Scripts\agent-console.exe run -- &lt;실행파일&gt; &lt;인자들&gt;</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">명령 형식 · 꺾쇠 부분은 실제 값으로 교체</div><pre><code>.venv/bin/agent-console run -- &lt;실행파일&gt; &lt;인자들&gt;</code></pre></div>
+        <ul>
+          <li>producer는 <strong>schema_version 1의 JSON 한 개를 한 줄에</strong> 출력해야 합니다.</li>
+          <li>stdout에는 JSONL만, 일반 진단은 stderr로 보내세요. 각 이벤트를 즉시 flush해야 실시간으로 보입니다.</li>
+          <li>외부 명령은 현재 작업 폴더와 환경변수를 상속합니다. 다른 프로젝트의 실행 파일·스크립트는 필요한 경우 절대 경로로 지정하세요. 스크립트 경로만 바꿔도 작업 폴더가 자동으로 바뀌지는 않습니다.</li>
+          <li>외부 명령의 stdin은 닫혀 있으므로 실행 중 질문에 답해야 하는 대화형 명령은 사용할 수 없습니다.</li>
+        </ul>
+        <p class="note warm">실행 중 <kbd>q</kbd> 또는 <kbd>Ctrl</kbd> + <kbd>C</kbd>로 닫으면 직접 실행한 subprocess도 종료합니다. 그 프로세스가 추가로 만든 하위 프로세스 전체를 관리하지는 않습니다.</p>
+        <details><summary>파일 대신 pipe로 입력받고 싶다면</summary>
+          <p><code>replay -</code>는 표준 입력을 읽습니다. 이 모드는 항상 plain 보고서를 사용하며 입력이 끝난 뒤 결과를 출력합니다.</p>
+          <div class="command" data-platform="windows"><div class="command-head">PowerShell · stdin 샘플</div><pre><code>Get-Content tests/fixtures/successful_developer_run.jsonl | .\.venv\Scripts\agent-console.exe replay -</code></pre></div>
+          <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · stdin 샘플</div><pre><code>.venv/bin/agent-console replay - &lt; tests/fixtures/successful_developer_run.jsonl</code></pre></div>
+        </details>
+        <p class="small">Agent Console은 credential을 관리하거나 이벤트 로그를 자동 저장하지 않습니다. message·metadata·stderr 원문은 표시하지 않으며 ID와 이벤트 종류는 표시됩니다. 실제 실행 로그를 저장소에 commit하지 마세요.</p>
+      </section>
+      <section id="troubleshoot">
+        <h2>막혔을 때 확인할 것</h2>
+        <details><summary>python 또는 agent-console 명령을 찾을 수 없어요</summary><p>Python 3.11 이상이 설치되어 있는지, 현재 폴더가 저장소 root인지 확인하세요. Windows에서 <code>python</code> 대신 <code>py</code>만 인식된다면 <code>py -3 --version</code>으로 버전을 확인한 뒤 <code>py -3 -m venv .venv</code>로 생성할 수 있습니다. 이후에는 안내서의 <code>.venv</code> 실행 경로를 그대로 사용하세요.</p></details>
+        <details><summary>Activate.ps1 실행이 차단됐어요</summary><p>이 안내서의 명령은 가상환경 활성화가 필요 없습니다. PowerShell 실행 정책을 바꾸지 않아도 <code>.\.venv\Scripts\python.exe</code>와 <code>.\.venv\Scripts\agent-console.exe</code>를 직접 실행할 수 있습니다.</p></details>
+        <details><summary>화면 대신 글자 보고서만 나와요</summary><p>출력이 terminal이 아니면 자동으로 plain mode가 됩니다. 일반 터미널에서 실행하거나 <code>--tui</code>를 사용하세요. <code>run</code>에서는 <code>run --tui -- ...</code>처럼 외부 명령을 구분하는 <code>--</code> 앞에 옵션을 넣습니다. stdin replay는 plain mode만 지원합니다.</p></details>
+        <details><summary>이벤트가 한꺼번에 나오거나 계속 기다려요</summary><p>producer가 stdout을 buffering하고 있을 수 있습니다. Python 명령은 <code>-u</code>를 사용하거나 이벤트마다 flush하도록 설정하세요. plain mode는 입력 종료까지 기다립니다. terminal event를 보냈더라도 producer 프로세스가 계속 살아 있으면 구독도 계속됩니다.</p></details>
+        <details><summary>Malformed JSON / Compatibility error가 보여요</summary><p>stdout에 일반 문장이 섞였는지, 한 줄이 완전한 JSON event인지 확인하세요. 지원 버전은 <code>schema_version: 1</code>입니다. 잘못된 줄은 건너뛰고 다음 줄을 처리합니다.</p></details>
+        <details><summary>Incomplete 또는 sequence gaps가 보여요</summary><p>실행 종료 이벤트가 없거나 중간 이벤트가 누락됐습니다. producer의 종료 상태와 event log가 완전한지 확인하세요. Agent Console은 입력이 끝났다는 이유만으로 실행을 성공으로 처리하지 않습니다.</p></details>
+        <details><summary>stderr가 있는데 내용은 보이지 않아요</summary><p>민감 정보 노출을 줄이기 위해 수신 byte 수만 표시합니다. producer가 제공하는 별도의 안전한 진단 방법으로 원인을 확인하세요. 전체 run이 Completed여도 subprocess 종료 코드가 0이 아니면 CLI는 실패를 반환합니다.</p></details>
+        <details><summary>터미널이 작거나 이벤트가 너무 많아요</summary><p>창을 키우거나 <code>--plain</code>으로 실행하세요. TUI에는 최근 1,000개, plain에는 최근 200개 이벤트가 표시됩니다. 보관 한도는 session당 20개 run, run당 10,000개 이벤트이며 한도를 넘으면 명시적인 입력 오류로 보고합니다.</p></details>
+      </section>
+      <section id="development">
+        <h2>개발용 설정 <span class="small">선택 사항</span></h2>
+        <p>사용만 한다면 여기까지 진행하지 않아도 됩니다. 코드를 수정하고 테스트하려면 개발 의존성을 설치하세요.</p>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell · 개발 도구 및 검증</div><pre><code>.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
+git diff --check</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · 개발 도구 및 검증</div><pre><code>.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m pytest
+.venv/bin/python -m ruff check .
+.venv/bin/python -m ruff format --check .
+git diff --check</code></pre></div>
+        <p class="small">이 안내서는 저장소에 포함된 독립 HTML 파일입니다. 별도 서버나 외부 리소스 없이 브라우저에서 열 수 있습니다.</p>
+      </section>
+      <footer>Agent Console v0.1 · 설치와 사용 안내 <a href="#prepare">처음으로 돌아가기 ↑</a></footer>
+    </main>
+  </div>
+  <script>
+    const picker = document.querySelector('.os-picker');
+    picker.hidden = false;
+    document.body.classList.add('js-ready');
+    const status = document.querySelector('#copy-status');
+    picker.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-os-choice]');
+      if (!button) return;
+      document.body.dataset.os = button.dataset.osChoice;
+      for (const choice of picker.querySelectorAll('button')) {
+        choice.setAttribute('aria-pressed', String(choice === button));
+      }
+      status.textContent = `${button.textContent} 명령어를 표시합니다.`;
+    });
+    for (const block of document.querySelectorAll('.command')) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy';
+      button.textContent = '복사';
+      button.setAttribute('aria-label', `${block.querySelector('.command-head').textContent} 명령어 복사`);
+      block.querySelector('.command-head').append(button);
+      button.addEventListener('click', async () => {
+        const code = block.querySelector('code');
+        try {
+          await navigator.clipboard.writeText(code.textContent);
+          button.textContent = '복사됨';
+          status.textContent = '명령어를 복사했습니다. 터미널에 붙여넣어 실행하세요.';
+          setTimeout(() => { button.textContent = '복사'; }, 1800);
+        } catch {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(code);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          button.textContent = '직접 복사';
+          status.textContent = '자동 복사를 사용할 수 없습니다. 선택된 명령어를 Ctrl+C 또는 Command+C로 복사하세요.';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
