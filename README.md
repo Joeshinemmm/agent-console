@@ -1,6 +1,6 @@
 # Agent Console
 
-AI Agent runtime의 구조화된 JSONL 실행 이벤트를 실시간 Terminal UI로 시각화하는 독립 client.
+로컬 ai-agent 작업을 시작하고 구조화된 JSONL 실행 이벤트를 실시간 Terminal UI로 관찰하는 독립 client/controller.
 
 처음 사용한다면 [설치와 사용 안내서 (HTML)](docs/getting-started.html)를 따라 해보세요.
 Windows PowerShell과 macOS/Linux의 설치, 샘플 실행, 화면 읽기, 실제 Agent 연결 방법을 설명합니다.
@@ -17,11 +17,10 @@ prompt 원문이나 hidden chain-of-thought를 보여주는 도구가 아닙니�
 
 ## Current Status
 
-**v0.1.0 MVP** — 실제 ai-agent Developer Live E2E 검증을 완료했습니다.
-
-**v0.2.0 Unreleased — Run Launcher implemented.** 로컬 Runtime Profile, New Run 화면,
-Workspace Check, 실행 확인 및 기존 Monitor 연결을 구현했습니다. 가짜 subprocess/headless 테스트로
-검증했으며 **v0.2 Live Launcher E2E는 아직 검증하지 않았습니다.** 패키지 버전은 0.1.0을 유지합니다.
+**v0.2.0 — Live Launcher E2E verified.** 로컬 Runtime Profile, New Run 화면,
+Workspace Check, 실행 확인 및 기존 Monitor 연결을 제공합니다. 사용자가 일반 non-elevated
+PowerShell에서 실제 Workspace Check와 Developer/Codex 문서 생성, Launcher 복귀를 검증했습니다.
+v0.1의 replay/직접 subprocess Monitor 기능도 유지합니다.
 설정과 사용자 검증 순서는 [Run Launcher 안내](docs/run-launcher.md)를 참고하세요.
 
 | 검증 항목 | 상태 | 근거 |
@@ -30,10 +29,12 @@ Workspace Check, 실행 확인 및 기존 Monitor 연결을 구현했습니다. 
 | Subprocess streaming | Verified | 실제 subprocess pipe 테스트 |
 | Successful / failed run | Verified | 상태 계산·CLI·TUI 테스트 |
 | Real ai-agent JSONL | Verified | 사용자 read-only live 연동 검증 |
-| Real Developer Live E2E | Verified | 사용자 실제 파일 생성 및 TUI 관찰 |
-| Production deployment | 검증 범위 아님 | 로컬 MVP 검증 기준점 |
+| Real Developer monitoring | Verified | v0.1 사용자 실제 파일 생성 및 TUI 관찰 |
+| Run Launcher Workspace Check | Verified | 사용자 실제 workspace 검증, exit 0, Issues 0 |
+| Run Launcher Developer Live E2E | Verified | 명시적 승인 후 문서 하나 생성, 완료 및 Launcher 복귀 |
+| Production deployment | Not claimed | 검증 범위에 포함하지 않음 |
 
-Live 검증은 아래에 명시한 단일 문서 생성 시나리오에 한정합니다.
+v0.2 Live 검증은 Workspace Check와 단일 문서 생성 시나리오에 한정합니다.
 릴리스 변경 사항은 [CHANGELOG](CHANGELOG.md)를 참고하세요.
 
 ## Features
@@ -47,25 +48,34 @@ Live 검증은 아래에 명시한 단일 문서 생성 시나리오에 한정�
 - 다중 run 선택, 키보드 탐색, 자동 plain-text 출력
 - synthetic fixture 기반 개발 및 테스트
 - 로컬 Runtime Profile CLI와 Developer/Codex Run Launcher
+- 실행별 모델 override, verify none/pytest/web 선택, max retries 0–3
 - 별도 Workspace Check, 기본 OFF인 Allow execution, Start 확인 대화상자
 - 실행 취소·Launcher 복귀, 공개 상대 경로를 이용한 작은 파일 변경 요약
 
 ## Architecture
 
 ```text
-RuntimeProfile + LaunchRequest → CommandBuilder (argv) → local ai-agent subprocess
-                                                         ↓ stdout JSONL
-AI Agent Runtime / versioned event log
-    ↓ JSONL Event Stream (stdout / file / stdin)
-Agent Console
-    ↓ Parser
-Event Model
-    ↓ Pure Reducer / RunState
-Textual TUI / plain report
+Agent Console Launcher
+    ↓ RuntimeProfile + LaunchRequest
+CommandBuilder (argv)
+    ↓
+local ai-agent subprocess
+    ↓ stdout JSONL             file / stdin replay
+    └─────────────┬───────────────────┘
+                  ↓
+         Parser → Event → Reducer
+                  ↓
+               RunState
+                  ↓
+        Textual TUI / plain report
 
 subprocess stderr → byte count (원문 폐기)
 subprocess exit   → 독립적인 process 결과
 ```
+
+제어 흐름은 `사용자 → Launcher → Check Workspace → 사용자 Start 승인 → ai-agent →
+Developer/Codex → Target Project`입니다. Check 성공 후에도 별도 Start 승인이 필요하며,
+최종 workspace/실행 권한 판단은 ai-agent에 있습니다.
 
 `models`, `protocol`, `state`, `sources`, `launcher` core는 Textual을 import하지 않습니다.
 UI는 상태를 표시하며 business state를 생성하지 않습니다. 이벤트 종류에 따른 설명은
@@ -78,6 +88,15 @@ Textual은 Python 기반 terminal widget, 비동기 입력, 키보드 탐색, he
 [testing guide](https://textual.textualize.io/guide/testing/).
 
 ## Live Integration
+
+v0.2에서는 사용자가 Runtime Profile을 통해 Launcher에서 실제 Workspace Check와 Developer run을
+시작했습니다. 명시적 Allow execution 및 Start confirmation 이후 `file.created`, `run.completed`,
+`COMPLETED`, `Process exit 0`, `Errors 0`, `Issues 0`, `[stream ended]`를 확인했습니다.
+`docs/v0.2-launcher-smoke.md` 하나만 생성됐고 의도하지 않은 파일 변경은 없었으며 Launcher 복귀도
+정상 확인했습니다. [v0.2 검증 기록](docs/v0.2-launcher-smoke.md)에 사용자 보고 범위를 정리했습니다.
+Production Ready나 모든 ai-agent workflow의 검증을 의미하지 않습니다.
+
+다음은 v0.1에서 먼저 완료한 직접 subprocess Monitor 검증 기록입니다.
 
 별도 ai-agent runtime과의 read-only JSONL 연동에 이어, 일반 non-elevated PowerShell에서
 실제 Developer Agent와 Codex를 사용하는 Live E2E를 사용자가 실행하고 성공을 확인했습니다.
@@ -149,6 +168,20 @@ python3 -m venv .venv
 일반 사용자 설치에는 `pip install .`로 개발 의존성을 생략할 수 있습니다.
 
 ## Usage
+
+Launcher의 기본 사용 순서는 다음과 같습니다. 실제 등록 명령은
+[Runtime Profile 등록 안내](docs/run-launcher.md#1-설치와-runtime-profile-등록)를 참고하세요.
+
+1. 로컬 Runtime Profile을 등록합니다.
+2. `agent-console launch --profile <name>`을 실행합니다.
+3. 작업할 Workspace의 절대 경로를 입력합니다.
+4. **Check Workspace** 결과를 확인하고 Launcher로 돌아옵니다.
+5. Prompt를 입력합니다.
+6. 파일 쓰기·도구 실행이 필요하면 **Allow execution**을 직접 ON으로 바꿉니다.
+7. **Start Run**을 누릅니다.
+8. 확인 창에서 설정을 검토하고 **Start**를 누릅니다.
+9. 기존 Monitor에서 진행과 종료 결과를 관찰합니다.
+10. 완료 후 **Back to Launcher**로 돌아옵니다.
 
 가상환경의 `Scripts` 또는 `bin`이 PATH에 있는 경우:
 
@@ -293,7 +326,7 @@ pytest 임시 파일은 저장소 내 `.pytest_tmp/`에 생성합니다.
 
 ## Roadmap
 
-아래는 다음 버전의 검토 후보이며 v0.1.0 구현 범위에 포함되지 않습니다.
+아래는 다음 버전의 검토 후보이며 v0.2.0 구현 범위에 포함되지 않습니다.
 
 - 파일 변경 요약의 경로 문자 지원 확대
 - run/component 필터와 replay playback 제어

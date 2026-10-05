@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-10-06
 
 ### Added
 
@@ -12,8 +12,16 @@
 - Start 후 prompt/undo 기록 제거, allowlist 상대 경로의 파일 변경 요약
 - synthetic subprocess와 Textual headless 기반 Launcher 테스트 및 사용자 Live 검증 절차
 
-Run Launcher implemented. 실제 v0.2 Live Launcher E2E는 아직 검증하지 않았다.
-패키지 버전은 0.1.0을 유지하며 v0.2 tag/release는 생성하지 않는다.
+### Verified
+
+- 사용자 일반 non-elevated PowerShell에서 실제 ai-agent Workspace Check 성공
+- 명시적 실행 승인 후 실제 Developer/Codex Launcher Live E2E 성공
+- smoke 문서 하나 생성, COMPLETED / exit 0 / Errors 0 / Issues 0 / stream ended 확인
+- 의도하지 않은 파일 변경 없음 및 Launcher 복귀 정상 확인
+
+패키지 버전을 0.2.0으로 확정했다. 검증 범위는 Workspace Check와 단일 문서 생성이며,
+운영 환경 배포나 모든 workflow의 검증을 주장하지 않는다.
+일반화된 사용자 검증 결과는 [v0.2 smoke 기록](docs/v0.2-launcher-smoke.md)을 참고한다.
 
 ## 0.1.0
 

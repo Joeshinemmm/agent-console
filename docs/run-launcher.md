@@ -1,8 +1,11 @@
 # v0.2 Run Launcher 사용 및 Live 검증
 
-**Run Launcher implemented / Live Launcher E2E not verified.** 아래 실제 검증은 사용자가 일반
-non-elevated PowerShell에서 직접 수행한다. 개발 테스트는 synthetic subprocess만 사용한다.
-v0.1의 실제 Developer 검증과 이번 Launcher 검증은 별개다. 패키지 버전은 아직 0.1.0이다.
+**v0.2.0 — Run Launcher implemented / Live Launcher E2E verified.** 사용자가 아래 Step 1과
+Step 2를 일반 non-elevated PowerShell에서 직접 수행하고 성공을 확인했다.
+Workspace Check, 명시적 승인 후 Developer/Codex 문서 생성, Monitor 완료 및 Launcher 복귀를
+검증했다. [사용자 검증 기록](v0.2-launcher-smoke.md)에 결과를 정리했다.
+개발 당시 패키지 버전은 0.1.0이었으며, Live E2E 성공 후 0.2.0으로 확정했다.
+개발 자동 테스트는 synthetic subprocess만 사용하고 실제 Live 실행은 다시 수행하지 않았다.
 
 ## 1. 설치와 Runtime Profile 등록
 
@@ -80,6 +83,9 @@ Check 성공은 작업 승인이나 미래 실행의 권한 보장이 아니다.
 
 ## 3. Live Verification Step 2 — 문서 하나 생성
 
+아래는 완료한 검증의 재현 절차다. 릴리스에는 검증 당시 생성된 smoke 문서가 포함되어 있으므로
+같은 저장소에서 그대로 재실행하면 기존 파일 확인 단계에서 중단해야 한다. 기록을 덮어쓰지 않는다.
+
 Step 1 성공 후 사용자가 실제 실행을 승인할 때 수행한다. 기존 작업을 먼저 확인하고
 `docs/v0.2-launcher-smoke.md`가 이미 있으면 덮어쓰지 말고 중단한다.
 
@@ -119,7 +125,7 @@ git diff --stat
 
 `git diff --stat`에는 untracked 새 파일이 나오지 않으므로 `git status --short`와 파일 확인을 함께
 사용한다. 기대 변경은 새 문서 하나뿐이다. 이 절차에서 자동 commit/push/tag/release는 하지 않는다.
-실제 결과를 확인한 뒤에만 Live Launcher E2E verified로 상태를 갱신한다.
+이 절차의 성공은 사용자가 확인했으며, 그 결과를 이번 v0.2.0 릴리스에 반영했다.
 
 ## 실행 계약과 제한
 
@@ -168,5 +174,6 @@ Launcher는 interactive terminal이 필요하다. 기존 `replay` 및 `run -- ..
 - 다른 파일·의존성·Git history/remote 변경 없음
 - 종료 후 Launcher 복귀, prompt/undo 비우기, Allow execution OFF 확인
 
-현재 상태: `v0_2_implementation_complete=true`, `v0_2_live_e2e_verified=false`.
-실제 사용자 검증 전 v0.2.0 tag/release를 생성하지 않는다.
+현재 상태: `v0_2_implementation_complete=true`, `v0_2_live_e2e_verified=true`.
+v0.2.0은 위 Workspace Check 및 문서 생성 시나리오를 검증한 로컬 Launcher 릴리스다.
+Production Ready, 완전 자율 실행, 모든 ai-agent workflow의 검증을 의미하지 않는다.
