@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 
 from agent_console import __version__
+from agent_console.launcher.cli import add_commands, profile_command
+from agent_console.launcher.profile import LaunchError, config_path, load_profiles
 from agent_console.presentation import description
 from agent_console.sources.file import file_source, stdin_source
 from agent_console.sources.subprocess import subprocess_source
@@ -36,6 +38,7 @@ def parser() -> argparse.ArgumentParser:
         display.add_argument("--plain", action="store_true", help="Print a final plain-text report")
         display.add_argument("--tui", action="store_true", help="Force interactive terminal UI")
     run.add_argument("command", nargs=argparse.REMAINDER, help="-- executable [arguments ...]")
+    add_commands(commands)
     return cli
 
 
@@ -66,6 +69,30 @@ def plain_report(session: Session) -> None:
 def main(argv: list[str] | None = None) -> int:
     cli = parser()
     args = cli.parse_args(argv)
+    if args.mode in ("profile", "launch"):
+        try:
+            if args.mode == "profile":
+                return profile_command(args)
+            book = load_profiles(config_path(args.config))
+            if args.profile:
+                book.select(args.profile)
+            if not sys.stdout.isatty() or not sys.stdin.isatty():
+                raise LaunchError(
+                    "Launch requires an interactive terminal; replay/run support --plain."
+                )
+            from agent_console.ui.launcher import LauncherApp
+
+            return LauncherApp(book, args.profile).run() or 0
+        except (LaunchError, OSError) as error:
+            message = (
+                str(error)
+                if isinstance(error, LaunchError)
+                else "Local config or terminal unavailable."
+            )
+            print(f"agent-console: {message}", file=sys.stderr)
+            return 2
+        except KeyboardInterrupt:
+            return 130
     is_stdin = args.mode == "replay" and args.path == "-"
     if is_stdin and args.tui:
         cli.error("stdin replay uses plain output; use file replay or run for the interactive UI.")

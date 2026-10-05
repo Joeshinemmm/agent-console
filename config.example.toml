@@ -1,0 +1,11 @@
+# Example only. Register local profiles with the CLI; never commit personal config.
+config_version = 1
+default_profile = "local"
+
+[profiles.local]
+python_executable = "C:/path/to/ai-agent/.venv/Scripts/python.exe"
+ai_agent_main = "C:/path/to/ai-agent/main.py"
+provider = "codex"
+model = "your-supported-model"
+default_verify = "none"
+default_max_retries = 0

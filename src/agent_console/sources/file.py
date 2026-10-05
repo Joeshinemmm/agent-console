@@ -1,7 +1,7 @@
 import asyncio
 import queue
 import threading
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from pathlib import Path
 from typing import BinaryIO
 
@@ -20,7 +20,7 @@ def read_line(stream: BinaryIO) -> SourceItem | None:
     return SourceItem("line", line)
 
 
-async def file_source(path: Path, delay: float = 0) -> AsyncIterator[SourceItem]:
+async def file_source(path: Path, delay: float = 0) -> AsyncGenerator[SourceItem, None]:
     try:
         with path.open("rb") as stream:
             while (item := read_line(stream)) is not None:
@@ -30,7 +30,7 @@ async def file_source(path: Path, delay: float = 0) -> AsyncIterator[SourceItem]
         yield SourceItem("issue", "Cannot read event file; check the path and permissions.")
 
 
-async def stdin_source(stream: BinaryIO) -> AsyncIterator[SourceItem]:
+async def stdin_source(stream: BinaryIO) -> AsyncGenerator[SourceItem, None]:
     # A daemon reader avoids blocking the UI or asyncio shutdown on an open pipe.
     items: queue.Queue[SourceItem | None] = queue.Queue(maxsize=128)
     stopped = threading.Event()

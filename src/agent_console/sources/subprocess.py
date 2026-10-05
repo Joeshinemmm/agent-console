@@ -1,12 +1,14 @@
 import asyncio
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Callable, Sequence
 from contextlib import suppress
 
 from agent_console.protocol.jsonl import LineFramer
 from agent_console.sources import SourceItem
 
 
-async def subprocess_source(command: Sequence[str]) -> AsyncIterator[SourceItem]:
+async def subprocess_source(
+    command: Sequence[str], *, on_exit: Callable[[int | None], None] | None = None
+) -> AsyncGenerator[SourceItem, None]:
     """Execute argv directly. Drain both pipes concurrently; never expose stderr text."""
     try:
         process = await asyncio.create_subprocess_exec(
@@ -74,3 +76,5 @@ async def subprocess_source(command: Sequence[str]) -> AsyncIterator[SourceItem]
         for reader in readers:
             reader.cancel()
         await asyncio.gather(*readers, return_exceptions=True)
+        if on_exit is not None:
+            on_exit(process.returncode)

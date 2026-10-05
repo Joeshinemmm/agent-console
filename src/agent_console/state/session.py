@@ -1,12 +1,11 @@
 import asyncio
 from collections import deque
-from collections.abc import AsyncGenerator
 from contextlib import aclosing
 from dataclasses import dataclass, field
 
 from agent_console.models.run import RunState, Status
 from agent_console.protocol.jsonl import parse_line
-from agent_console.sources import SourceItem
+from agent_console.sources import ClosableSource, SourceItem
 from agent_console.state.reducer import apply_event
 
 
@@ -82,7 +81,7 @@ class Session:
         return 0
 
 
-async def consume(source: AsyncGenerator[SourceItem, None], session: Session) -> None:
+async def consume(source: ClosableSource, session: Session) -> None:
     try:
         async with aclosing(source):
             async for item in source:

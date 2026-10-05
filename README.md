@@ -19,6 +19,11 @@ prompt 원문이나 hidden chain-of-thought를 보여주는 도구가 아닙니�
 
 **v0.1.0 MVP** — 실제 ai-agent Developer Live E2E 검증을 완료했습니다.
 
+**v0.2.0 Unreleased — Run Launcher implemented.** 로컬 Runtime Profile, New Run 화면,
+Workspace Check, 실행 확인 및 기존 Monitor 연결을 구현했습니다. 가짜 subprocess/headless 테스트로
+검증했으며 **v0.2 Live Launcher E2E는 아직 검증하지 않았습니다.** 패키지 버전은 0.1.0을 유지합니다.
+설정과 사용자 검증 순서는 [Run Launcher 안내](docs/run-launcher.md)를 참고하세요.
+
 | 검증 항목 | 상태 | 근거 |
 | --- | --- | --- |
 | Fixture replay | Verified | synthetic 성공·실패 fixture 테스트 |
@@ -41,10 +46,15 @@ Live 검증은 아래에 명시한 단일 문서 생성 시나리오에 한정�
 - 실패·취소·불완전 실행 구분, subprocess 종료 코드와 stderr 수신량 표시
 - 다중 run 선택, 키보드 탐색, 자동 plain-text 출력
 - synthetic fixture 기반 개발 및 테스트
+- 로컬 Runtime Profile CLI와 Developer/Codex Run Launcher
+- 별도 Workspace Check, 기본 OFF인 Allow execution, Start 확인 대화상자
+- 실행 취소·Launcher 복귀, 공개 상대 경로를 이용한 작은 파일 변경 요약
 
 ## Architecture
 
 ```text
+RuntimeProfile + LaunchRequest → CommandBuilder (argv) → local ai-agent subprocess
+                                                         ↓ stdout JSONL
 AI Agent Runtime / versioned event log
     ↓ JSONL Event Stream (stdout / file / stdin)
 Agent Console
@@ -57,7 +67,7 @@ subprocess stderr → byte count (원문 폐기)
 subprocess exit   → 독립적인 process 결과
 ```
 
-`models`, `protocol`, `state`, `sources`는 Textual을 import하지 않습니다.
+`models`, `protocol`, `state`, `sources`, `launcher` core는 Textual을 import하지 않습니다.
 UI는 상태를 표시하며 business state를 생성하지 않습니다. 이벤트 종류에 따른 설명은
 `presentation.py`, lifecycle 상태 규칙은 `state/reducer.py`에 모았습니다.
 
@@ -149,10 +159,13 @@ agent-console replay tests/fixtures/successful_developer_run.jsonl --delay 0.2
 agent-console replay tests/fixtures/successful_developer_run.jsonl --plain
 agent-console replay - < events.jsonl
 agent-console run -- <executable> <arguments>
+agent-console profile list
+agent-console launch
 ```
 
-`<executable> <arguments>`는 실제 producer 명령으로 바꿉니다. 이 프로젝트는 외부
-ai-agent의 CLI 옵션을 가정하지 않습니다. 명령은 shell 없이 argument vector로 실행합니다.
+`<executable> <arguments>`는 실제 producer 명령으로 바꿉니다. 기존 `run --`은 외부
+producer의 argv를 그대로 전달합니다. 새 `launch`는 [문서화한 ai-agent CLI 계약](docs/run-launcher.md)을
+사용합니다. 두 방식 모두 shell 없이 argument vector로 실행합니다.
 `--plain` / `--tui`는 `run`의 `--` 앞에 둡니다. 외부 명령의 stdin은 닫혀 있으므로
 대화형 입력을 요구하는 producer는 지원하지 않습니다. producer는 각 JSONL 줄을 즉시
 flush해야 하며 Python producer는 `-u` 또는 자체 flush를 사용합니다.
@@ -175,6 +188,7 @@ TUI에서 `Tab`으로 panel을 이동하고 화살표 키로 timeline/component 
 직접 실행한 subprocess를 terminate하고 필요시 kill합니다.
 권장 최소 terminal 크기는 80×24입니다. 더 작은 창은 `--plain`을 사용합니다.
 stdout이 terminal이 아니면 최종 plain report를 출력합니다. stdin replay는 항상 plain mode입니다.
+`launch`는 대화형 stdin/stdout terminal이 필요하며 plain 모드를 제공하지 않습니다.
 
 CLI exit code:
 
@@ -201,7 +215,11 @@ UTF-8 newline-delimited JSON, 한 줄에 한 event이며 `schema_version = 1`만
 | `event_id`, `run_id`, `sequence` | 중복 식별, run 분리, 실행 순서 |
 | `timestamp_utc`, `elapsed_ms`, `duration_ms` | UTC 시각, 경과 시간, 선택적 duration 값 |
 | `component`, `event_type`, `status`, `level` | 작업 설명, lifecycle, 오류 판정 |
-| `message`, `metadata` | 문자열/object 타입 검증 후 폐기; safe metadata도 현재 UI에는 표시하지 않음 |
+| `message`, `metadata` | 타입 검증 후 원문 폐기. 아래 allowlist만 typed details로 보관 |
+
+`workspace.validated.metadata.external`, `git.status.metadata.git_repository/dirty`는 실제 boolean만,
+`file.created/modified/deleted.metadata.path`는 제한된 안전한 상대 경로만 보관합니다.
+브랜치, read/write/commit/push 권한은 현재 계약에 없으므로 추정하지 않습니다.
 
 위 필드는 모두 필요하며 `duration_ms`의 값은 `null`일 수 있습니다. producer는 public event
 정책에 맞는 safe metadata만 보내야 합니다. 형태 예시는
@@ -210,7 +228,7 @@ UTF-8 newline-delimited JSON, 한 줄에 한 event이며 `schema_version = 1`만
 
 - sequence는 run별 1부터 시작하는 양의 64-bit 정수입니다. 늦게 도착한 이벤트는 sequence로
   정렬하여 상태를 계산합니다. 중복은 무시하고 충돌은 첫 값을 유지하며, 종료 시 누락을 진단합니다.
-  message/metadata만 다른 중복은 payload를 보관하지 않으므로 구별하지 않습니다.
+  message/폐기된 metadata만 다른 중복은 구별하지 않습니다. allowlist details의 차이는 충돌로 감지합니다.
 - component는 마지막 lifecycle 상태를 유지합니다. 전체 결과는 `run.completed`, `run.failed`,
   `run.cancelled`를 따르며 terminal event 없이 입력이 끝나면 `Incomplete`입니다.
 - error/critical/fatal level 또는 failed/denied lifecycle을 오류로 집계합니다.
@@ -221,11 +239,17 @@ UTF-8 newline-delimited JSON, 한 줄에 한 event이며 `schema_version = 1`만
 
 ## Security / Privacy
 
-- prompt 원문을 필요로 하지 않으며 hidden reasoning을 표시하지 않습니다. 공개 저장소에는
+- Monitor는 prompt 원문을 표시하지 않으며 hidden reasoning을 표시하지 않습니다. 공개 저장소에는
   일반화된 문서와 synthetic fixture만 포함합니다.
 - API key, token, password, cookie, Authorization, prompt, source payload를 저장하는 기능이 없습니다.
-- free-form message/metadata는 표시하거나 상태에 보관하지 않습니다. 파일 이름 등 상세 정보도
-  숨겨지며 activity는 event 종류로 설명합니다. stderr는 동시에 drain하고 byte 수만 표시합니다.
+- free-form message/metadata는 표시하거나 상태에 보관하지 않습니다. 위 allowlist만 사용하며
+  파일 내용·diff를 읽지 않습니다. stderr는 동시에 drain하고 byte 수만 표시합니다.
+- Launcher prompt는 실행 시 argv로만 전달하며 config/history/log/Event State에 저장하지 않습니다.
+  Start 후 입력과 undo 기록을 비웁니다. 실행 중 OS 프로세스 조회 도구에는 argv가 보일 수 있습니다.
+- Runtime Profile에는 실행 파일 경로와 기본 옵션만 저장합니다. credential 필드나 prompt history는
+  허용하지 않습니다. 기본 위치는 Windows `%APPDATA%/agent-console/config.toml`입니다.
+- Allow execution은 기본 OFF이며 실행마다 명시적으로 선택합니다. Check 성공은 실행 승인이 아니며,
+  workspace와 실행 권한의 최종 판단은 ai-agent가 담당합니다.
 - parser 오류는 원본 줄이나 예외의 입력 값을 출력하지 않습니다. terminal escape/markup을
   identifier 검증 및 literal Text 렌더링으로 차단합니다.
 - protocol identifier 자체는 표시됩니다. producer가 ID나 event_type에 secret을 넣는 경우까지
@@ -257,7 +281,10 @@ pytest 임시 파일은 저장소 내 `.pytest_tmp/`에 생성합니다.
   보관합니다. 한도를 넘긴 이벤트는 오류로 보고하고 버리며 CLI 성공으로 처리하지 않습니다.
 - TUI는 최근 1,000 event, plain report는 최근 200 event, 진단 이력은 최근 100개로 제한합니다.
 - component별 마지막 lifecycle을 표시하며 nested task별 상태 집계는 하지 않습니다.
-- 메시지 원문·metadata·파일 경로·thread ID·stderr 원문을 UI에서 확인할 수 없습니다.
+- 메시지 원문·임의 metadata·절대 파일 경로·thread ID·stderr 원문은 표시하지 않습니다.
+  파일 변경 요약은 보관된 이벤트 중 최근 3개이며 ASCII 상대 경로만 표시합니다.
+- Launcher는 로컬 Developer/Codex 하나만 동시에 실행합니다. Profile의 모델 지원 여부는
+  runtime이 판단하며 모델 목록을 직접 조회하지 않습니다.
 - 직접 실행한 subprocess만 종료하며 descendant process tree 전체를 관리하지 않습니다.
   terminal event가 와도 producer가 종료되지 않으면 계속 구독합니다.
 - stdin replay는 plain mode이며, subprocess의 대화형 stdin은 지원하지 않습니다.
@@ -268,6 +295,6 @@ pytest 임시 파일은 저장소 내 `.pytest_tmp/`에 생성합니다.
 
 아래는 다음 버전의 검토 후보이며 v0.1.0 구현 범위에 포함되지 않습니다.
 
-- public event 정책을 유지하는 파일 변경 표시 개선
+- 파일 변경 요약의 경로 문자 지원 확대
 - run/component 필터와 replay playback 제어
 - 장시간·대량 stream의 중복 검사 인덱스 및 timeline 갱신 최적화

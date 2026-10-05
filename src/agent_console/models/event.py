@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
+from agent_console.models.details import EventDetails
+
 TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}\Z")
 
 
@@ -44,6 +46,7 @@ class Event:
     status: str
     level: str
     duration_ms: float | None
+    details: EventDetails = EventDetails()
 
     @classmethod
     def from_dict(cls, data: Any) -> "Event":
@@ -102,4 +105,5 @@ class Event:
             status=token(data["status"], "status"),
             level=token(data["level"], "level"),
             duration_ms=None if duration is None else number(duration, "duration_ms"),
+            details=EventDetails.from_metadata(data["event_type"], data["metadata"]),
         )
