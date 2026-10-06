@@ -7,9 +7,20 @@
 - 확인창 설정 정렬, Cancel의 disabled처럼 보이던 focus 반전 스타일 수정 및 안전한 초기 focus 유지
 - Launcher/Monitor Tab 탐색 연결 수정, 버튼의 focus·pressed·disabled 시각적 구분
 - Monitor의 짧은 run ID, 내용에 맞는 Timeline 높이, 중립 panel 테두리와 focus 강조
-- non-idle component 우선 표시, terminal 결과 및 상태 우선 summary 표시
+- component 상태 강조, terminal 결과 및 수치 summary 표시
 - stream/process 종료 후 Cancel 숨김과 Back to Launcher 강조; 종료 전 취소 동작 유지
-- 세 가지 viewport와 keyboard/mouse 동작에 대한 synthetic UI 회귀 테스트
+- viewport와 keyboard/mouse 동작에 대한 synthetic UI 회귀 테스트
+
+### Second pass
+
+- Launcher의 열 수는 너비로 결정하고, 낮은 창은 설정·Runtime control을 compact하게 표시
+- 일반 창에서 Prompt와 actions 동시 노출, Workspace 상태를 label 옆에 배치
+- Agents 여섯 상태에 필요한 높이를 먼저 확보하고 System 상태는 보조 줄로 분리
+- Run result에 종료·파일 변경 정보, Summary에 수치 지표를 배치해 중복 제거
+- 단일 run은 한 줄 header와 전체 ID tooltip, 다중 run은 compact selector 사용
+- 버튼의 공통 높이·여백·테두리와 밝은 focus 표시 통일, disabled label 가독성 개선
+- 실행 중 버튼 위치가 이동하지 않는 고정 action bar 유지
+- 80×24, 110×28, 120×30, 120×34, 160×50에서 실제 합성 terminal cell 및 panel clipping 검사
 
 UI/UX Polish Candidate이며 패키지 버전은 0.2.0을 유지한다.
 합성 이벤트 기반 검증과 사용자의 실제 visual/live 검증을 구분하며, 후자는 아직 미완료다.

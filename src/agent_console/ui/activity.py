@@ -13,7 +13,6 @@ def activity_text(run: RunState, session: Session) -> Text:
         result.append(f"\nRun event status: {run.display_status(session.ended)}")
     elif run.has_terminal_event:
         result.append(f"Run {str(run.status).lower()}", style="bold " + STYLES[run.status])
-        result.append(f"\nEvents {run.event_count} · Errors {run.error_count}")
     elif session.ended:
         result.append("Stream ended without a terminal result", style="yellow")
     elif run.activity:
@@ -31,5 +30,9 @@ def activity_text(run: RunState, session: Session) -> Text:
     paths = [event for event in run.events if event.details.path]
     if paths:
         result.append(f"\nFile changes reported: {len(paths)}")
-        result.append(f"\nLatest: {paths[-1].details.path}")
+        symbols = {"file.created": "+", "file.modified": "M", "file.deleted": "-"}
+        for event in paths[-3:]:
+            result.append(f"\n{symbols[event.event_type]} {event.details.path}")
+        if len(paths) > 3:
+            result.append("\nLatest 3 changes shown")
     return result

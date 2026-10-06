@@ -56,7 +56,7 @@ async def test_tui_multiple_run_selection(encode_event):
         assert picker.value == "run-b"
         picker.value = "run-a"
         await pilot.pause()
-        assert "run-a" in str(app.query_one("#run-status", Static).render())
+        assert app.query_one("#run-status").tooltip == "run-a"
 
 
 async def test_tui_invalid_stream_shows_diagnostic():

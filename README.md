@@ -129,7 +129,6 @@ target으로 사용한 self-hosting E2E 검증입니다. 범용 자율 작업이
 
 ```text
 AGENT CONSOLE
-Run [synthetic-developer-run                  v]
 Run syntheti…   COMPLETED   [stream ended]
 ┌ Timeline ──────────────────────────────────────────┐
 │ Seq   Elapsed   Component   Event / activity        │
@@ -137,18 +136,25 @@ Run syntheti…   COMPLETED   [stream ended]
 │ ...                                                │
 │  12    4.315s   Main        Run completed           │
 └────────────────────────────────────────────────────┘
-┌ Components ─────────────┐ ┌ Run result ─────────────┐
-│ Main        Completed  │ │ Run completed           │
-│ Developer   Completed  │ │ Events 12 · Errors 0    │
+┌ Agents ─────────────────┐ ┌ Run result ─────────────┐
+│ Developer   Completed  │ │ Run completed           │
 │ Codex       Completed  │ │ Process exit 0          │
 │ Test        Idle       │ │ Stream ended            │
+│ Browser     Idle       │ │ File changes reported: 1│
+│ Desktop     Idle       │ │ + docs/example.md       │
+│ Training    Idle       │ │                         │
 └────────────────────────┘ └─────────────────────────┘
-COMPLETED   Elapsed 4.315s   Events 12   Errors 0
+System: Main Completed · Workspace Completed · Git Completed
+Elapsed 4.315s   Events 12   Errors 0   Issues 0
 Q Quit   Ctrl+C Stop / Quit   Tab Next   Shift+Tab Previous
 ```
 
-0.2.1 UI/UX Polish Candidate의 화면 구성이다. 전체 run ID는 selector에서 확인하며,
-Timeline은 이벤트 수에 맞춰 늘어나고 일정 높이 이후 내부에서 스크롤한다.
+0.2.1 UI/UX Polish Candidate second pass의 화면 구성이다.
+단일 run은 짧은 ID를 표시하며 header에 마우스를 올리면 전체 ID를 확인할 수 있다.
+다중 run이면 같은 header 줄에 selector가 나타난다.
+Timeline은 여섯 Agent와 결과에 필요한 공간을 확보한 뒤 늘어나고, 이후 내부에서 스크롤한다.
+System component 상태는 보조 줄에 표시하며, 기존 상태 데이터는 유지한다.
+종료 코드와 최근 파일 변경은 Run result, 시간·이벤트·오류·진단 수치는 Summary에서 확인한다.
 일반 panel은 중립 테두리, focus된 panel은 강조 테두리를 사용한다.
 Launcher에서 연 Monitor는 stream/process 종료 후 Cancel 대신 **Back to Launcher**를 강조한다.
 terminal event를 받았더라도 process가 아직 끝나지 않았다면 Cancel을 유지한다.
@@ -190,7 +196,10 @@ Launcher의 기본 사용 순서는 다음과 같습니다. 실제 등록 명령
 9. 기존 Monitor에서 진행과 종료 결과를 관찰합니다.
 10. 완료 후 **Back to Launcher**로 돌아옵니다.
 
-Launcher는 120×40 / 160×50에서 Run settings를 2열로 배치해 Prompt와 action을 함께 보여준다.
+Launcher는 110열 이상이면 높이가 낮아도 Run settings를 2열로 유지한다.
+36행 미만에서는 Runtime과 설정을 compact하게 표시하고 일부 도움말은 tooltip으로 제공한다.
+일반 창을 근사한 110×28 / 120×30 / 120×34에서 Prompt와 action의 동시 노출을 검사한다.
+캡처의 정확한 문자 셀 크기를 알 수 없어 여러 중간 크기를 검사하며, 실제 Windows Terminal 검증은 별도다.
 80×24에서는 1열 스크롤을 사용하며 action은 하단에 유지된다. Tab / Shift+Tab으로 이동한다.
 Workspace 옆의 Unchecked / Checking / Valid / Invalid와 Execution의 OFF / ENABLED를 확인한다.
 Workspace 검증 성공은 실행 승인이 아니다. 확인창은 Cancel에 먼저 focus되며,

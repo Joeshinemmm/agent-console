@@ -70,7 +70,7 @@ async def test_launcher_confirmation_success_and_back(book, tmp_path, size):
         await settle(app, pilot)
         assert app.controller.session.exit_code == 0
         assert "COMPLETED" in str(app.screen.query_one("#run-status", Static).render())
-        assert "docs/example.md" in str(app.screen.query_one("#summary", Static).render())
+        assert "docs/example.md" in str(app.screen.query_one("#activity", Static).render())
         assert app.screen.query_one("#back-launcher").region.bottom <= size[1]
         await pilot.click("#back-launcher")
         assert isinstance(app.screen, LauncherScreen)

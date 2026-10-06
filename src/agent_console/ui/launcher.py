@@ -76,15 +76,33 @@ class LauncherScreen(Screen):
     #launch-form .title { height: 1; text-style: bold; }
     #launch-form .help { height: 1; color: $text-muted; }
     #launch-form Input, #launch-form Select { width: 100%; height: 3; }
+    #runtime-row { height: 3; }
+    #runtime-row Label { width: 16; height: 3; content-align: left middle; }
+    #runtime-row Select { width: 1fr; }
     #workspace-heading { height: 1; }
-    #workspace-heading Label { width: 1fr; }
-    #workspace-state { width: auto; text-style: bold; }
+    #workspace-heading Label { width: auto; }
+    #workspace-state { width: auto; margin-left: 2; text-style: bold; }
     #workspace-state.valid { color: $success; }
     #workspace-state.invalid { color: $error; }
     #workspace-state.checking { color: $primary; }
     #run-settings { grid-size: 2; grid-rows: 4 5 4; grid-gutter: 0 2; height: 13; }
     #run-settings Vertical { height: auto; }
     LauncherScreen.narrow #run-settings { grid-size: 1; grid-rows: 4 4 5 5 4 4; height: 26; }
+    LauncherScreen.short #runtime-row, LauncherScreen.short #runtime-row Label,
+    LauncherScreen.short #runtime-row Select { height: 1; }
+    LauncherScreen.short #launch-form .help { display: none; }
+    LauncherScreen.short #run-settings { grid-rows: 2 2 2; height: 6; }
+    LauncherScreen.short.narrow #run-settings { grid-rows: 2 2 2 2 2 2; height: 12; }
+    LauncherScreen.short #run-settings Vertical { layout: horizontal; height: 2; }
+    LauncherScreen.short #run-settings Label { width: 12; height: 1; }
+    LauncherScreen.short #run-settings Input,
+    LauncherScreen.short #run-settings Select { width: 1fr; height: 1; }
+    LauncherScreen.short #run-settings Input:focus,
+    LauncherScreen.short Select:focus > SelectCurrent {
+        background: $primary-muted; text-style: bold underline;
+    }
+    LauncherScreen.short #run-settings Checkbox { height: 1; padding: 0; border: none; }
+    LauncherScreen.short #run-settings #execution-state { width: 22; }
     #execution-state.enabled { color: $warning; text-style: bold; }
     #execution-note { height: auto; color: $text-muted; }
     #prompt { height: 5; border: round $border-blurred; }
@@ -109,13 +127,14 @@ class LauncherScreen(Screen):
         yield Header()
         with VerticalScroll(id="launch-form", can_focus=False):
             yield Static("New agent run", classes="title")
-            yield Label("Runtime profile")
-            yield Select(
-                [(name, name) for name in self.book.profiles],
-                id="profile",
-                value=self.selected if self.selected else Select.NULL,
-                prompt="No runtime configured",
-            )
+            with Horizontal(id="runtime-row"):
+                yield Label("Runtime profile")
+                yield Select(
+                    [(name, name) for name in self.book.profiles],
+                    id="profile",
+                    value=self.selected if self.selected else Select.NULL,
+                    prompt="No runtime configured",
+                )
             if not self.book.profiles:
                 yield Static(
                     "No runtime configured. Register one using agent-console profile add, "
@@ -125,7 +144,11 @@ class LauncherScreen(Screen):
             with Horizontal(id="workspace-heading"):
                 yield Label("Workspace")
                 yield Static("Unchecked", id="workspace-state", markup=False)
-            yield Input(placeholder="Existing absolute directory", id="workspace")
+            yield Input(
+                placeholder="Existing absolute directory",
+                id="workspace",
+                tooltip="Check before starting work; success is not execution approval.",
+            )
             yield Static(
                 "Check before starting work; success is not execution approval.", classes="help"
             )
@@ -146,7 +169,11 @@ class LauncherScreen(Screen):
                     )
                 with Vertical():
                     yield Label("Model")
-                    yield Input(id="model", placeholder="Model from runtime profile")
+                    yield Input(
+                        id="model",
+                        placeholder="Model from runtime profile",
+                        tooltip="Override for this run only",
+                    )
                     yield Static("Override for this run only", classes="help")
                 with Vertical():
                     yield Label("Verify")
@@ -158,8 +185,8 @@ class LauncherScreen(Screen):
                     )
                     yield Static("No host verification", classes="help", id="verify-help")
                 with Vertical():
-                    yield Label("Max retries · 0–3")
-                    yield Input("0", id="retries", type="integer")
+                    yield Label("Retries 0–3")
+                    yield Input("0", id="retries", type="integer", tooltip="Max retries: 0–3")
                 with Vertical():
                     yield Label("Execution · OFF", id="execution-state")
                     yield Checkbox("Allow execution", value=False, id="allow-execution")
@@ -168,7 +195,9 @@ class LauncherScreen(Screen):
                 id="execution-note",
             )
             yield Label("Prompt")
-            yield TextArea(id="prompt")
+            yield TextArea(
+                id="prompt", tooltip="Not saved; cleared on Start, including undo history"
+            )
             yield Static("Not saved · cleared on Start, including undo history", classes="help")
         yield Static(
             "Ready. Check Workspace before starting work.", id="launch-status", markup=False
@@ -191,8 +220,13 @@ class LauncherScreen(Screen):
         self.layout_for_size()
 
     def layout_for_size(self) -> None:
-        self.set_class(self.size.width < 110 or self.size.height < 36, "narrow")
+        self.set_class(self.size.width < 110, "narrow")
+        short = self.size.height < 36
+        self.set_class(short, "short")
         self.set_class(self.size.width >= 110 and self.size.height >= 46, "roomy")
+        if self.is_mounted:
+            for selector in ("#profile", "#task", "#provider", "#model", "#verify", "#retries"):
+                self.query_one(selector).compact = short
 
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
         if event.checkbox.id == "allow-execution":
@@ -230,6 +264,7 @@ class LauncherScreen(Screen):
                 "web": "Run pytest + local web verification",
             }
             self.query_one("#verify-help", Static).update(help_text.get(str(event.value), ""))
+            event.select.tooltip = help_text.get(str(event.value), "")
 
     def on_input_changed(self, event: Input.Changed) -> None:
         if event.input.id == "workspace":

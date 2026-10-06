@@ -127,6 +127,7 @@ async def test_modal_focus_mouse_keyboard_safety(book, tmp_path, size):
     async with app.run_test(size=size) as pilot:
         fill(app, tmp_path)
         await pilot.click("#start-run")
+        await pilot.pause()
         modal = app.screen
         cancel = modal.query_one("#dismiss-confirm", Button)
         start = modal.query_one("#confirm-start", Button)
@@ -186,8 +187,8 @@ async def test_button_hover_pressed_disabled_distinct():
         assert button.styles.border_top != focused
         button.disabled = True
         await pilot.pause()
-        assert button.styles.text_opacity < 1
-        assert button.styles.text_style.dim
+        assert button.styles.text_opacity == 1
+        assert button.styles.color.a == 0.6
         assert not button.styles.text_style.reverse
         assert button.styles.border_top != focused
 
@@ -249,9 +250,10 @@ async def test_monitor_states_and_layout(encode_event, size, state):
         timeline.focus()
         await pilot.pause()
         assert timeline.styles.border_top[0] == "solid"
-        activity.focus()
+        result_panel = app.query_one("#result-scroll")
+        result_panel.focus()
         await pilot.pause()
-        assert activity.styles.border_top[0] == "solid"
+        assert result_panel.styles.border_top[0] == "solid"
         assert timeline.styles.border_top[0] == "round"
 
 
@@ -283,7 +285,7 @@ async def test_monitor_keyboard_navigation_and_compact_activity(encode_event, si
         await monitor_ready(app, pilot, running=True)
         app.query_one(Timeline).focus()
         await pilot.pause()
-        for name in ("component-scroll", "activity", "summary", "cancel-run"):
+        for name in ("component-scroll", "result-scroll", "system-status", "summary", "cancel-run"):
             await pilot.press("tab")
             assert app.focused.id == name
         await pilot.press("shift+tab")
@@ -342,5 +344,12 @@ def test_components_keep_idle_visible_after_active(make_event):
     run = RunState("synthetic", components=(("test", Status.IDLE), ("developer", Status.RUNNING)))
     widget.show_run(run)
     table = widget.render()._renderable
-    assert [text.plain for text in table.columns[0]._cells] == ["Developer", "Test"]
+    assert [text.plain for text in table.columns[0]._cells] == [
+        "Developer",
+        "Codex",
+        "Test",
+        "Browser",
+        "Desktop",
+        "Training",
+    ]
     assert table.columns[0]._cells[-1].style == "dim"
