@@ -5,7 +5,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.events import Resize
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Select, Static
+from textual.widgets import Button, Footer, Select, Static
 from textual.worker import Worker, WorkerCancelled
 
 from agent_console.presentation import STYLES
@@ -13,7 +13,7 @@ from agent_console.sources import ClosableSource
 from agent_console.state.session import Session, consume
 from agent_console.ui.activity import activity_text
 from agent_console.ui.components import Components, system_text
-from agent_console.ui.controls import ActionButton
+from agent_console.ui.controls import ActionButton, ConsoleHeader
 from agent_console.ui.summary import summary
 from agent_console.ui.timeline import Timeline
 
@@ -73,7 +73,7 @@ class MonitorScreen(Screen):
         self.metrics_text = Text("No events received")
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield ConsoleHeader()
         with Horizontal(id="run-heading"):
             yield Select([], prompt="Runs", id="run-picker", compact=True)
             yield Static("Waiting for JSONL stream…", id="run-status", markup=False)

@@ -1,14 +1,15 @@
+from rich.rule import Rule
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
 from textual.events import Resize
 from textual.screen import ModalScreen, Screen
-from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Select, Static, TextArea
+from textual.widgets import Button, Footer, Input, Label, Select, Static, Switch, TextArea
 
 from agent_console.launcher.command import LaunchRequest, preflight
 from agent_console.launcher.controller import LaunchController, workspace_result
 from agent_console.launcher.profile import LaunchError, ProfileBook, RuntimeProfile
-from agent_console.ui.controls import ActionButton
+from agent_console.ui.controls import ActionButton, ConsoleHeader
 from agent_console.ui.monitor import MonitorScreen
 
 
@@ -76,6 +77,12 @@ class LauncherScreen(Screen):
     #launch-form .title { height: 1; text-style: bold; }
     #launch-form .help { height: 1; color: $text-muted; }
     #launch-form Input, #launch-form Select { width: 100%; height: 3; }
+    #launch-form Input, #prompt { border: round $foreground 35%; }
+    #launch-form Select > SelectCurrent { border: round $foreground 35%; }
+    #launch-form Select > SelectOverlay {
+        border: solid $foreground 60% !important; background: $panel; padding: 0;
+    }
+    #launch-form Select:focus > SelectCurrent { border: solid $primary; }
     #runtime-row { height: 3; }
     #runtime-row Label { width: 16; height: 3; content-align: left middle; }
     #runtime-row Select { width: 1fr; }
@@ -86,27 +93,41 @@ class LauncherScreen(Screen):
     #workspace-state.invalid { color: $error; }
     #workspace-state.checking { color: $primary; }
     #run-settings { grid-size: 2; grid-rows: 4 5 4; grid-gutter: 0 2; height: 13; }
-    #run-settings Vertical { height: auto; }
+    #run-settings > Vertical { height: auto; }
     LauncherScreen.narrow #run-settings { grid-size: 1; grid-rows: 4 4 5 5 4 4; height: 26; }
     LauncherScreen.short #runtime-row, LauncherScreen.short #runtime-row Label,
     LauncherScreen.short #runtime-row Select { height: 1; }
     LauncherScreen.short #launch-form .help { display: none; }
     LauncherScreen.short #run-settings { grid-rows: 2 2 2; height: 6; }
     LauncherScreen.short.narrow #run-settings { grid-rows: 2 2 2 2 2 2; height: 12; }
-    LauncherScreen.short #run-settings Vertical { layout: horizontal; height: 2; }
+    LauncherScreen.short #run-settings > Vertical {
+        layout: horizontal; height: 2; border-bottom: solid $foreground 20%;
+    }
     LauncherScreen.short #run-settings Label { width: 12; height: 1; }
     LauncherScreen.short #run-settings Input,
     LauncherScreen.short #run-settings Select { width: 1fr; height: 1; }
+    LauncherScreen.short #run-settings Input,
+    LauncherScreen.short Select > SelectCurrent {
+        border-left: solid $foreground 40% !important;
+        border-right: solid $foreground 40% !important;
+        background: $panel; padding: 0 1;
+    }
     LauncherScreen.short #run-settings Input:focus,
     LauncherScreen.short Select:focus > SelectCurrent {
         background: $primary-muted; text-style: bold underline;
     }
-    LauncherScreen.short #run-settings Checkbox { height: 1; padding: 0; border: none; }
-    LauncherScreen.short #run-settings #execution-state { width: 22; }
+    #allow-execution { height: 1; padding: 0; border: none; margin-top: 1; }
+    #allow-execution:focus { background-tint: $foreground 15%; }
+    #allow-execution .switch--slider { color: $foreground 60%; }
+    #allow-execution.-on .switch--slider { color: $warning; }
+    LauncherScreen.short #allow-execution { margin-top: 0; }
+    LauncherScreen.short #run-settings #execution-state { width: 27; }
     #execution-state.enabled { color: $warning; text-style: bold; }
     #execution-note { height: auto; color: $text-muted; }
-    #prompt { height: 5; border: round $border-blurred; }
-    LauncherScreen.roomy #prompt { height: 8; }
+    #prompt-heading { height: 1; }
+    #prompt-heading Label { width: 1fr; }
+    #prompt-heading Button { margin-left: 1; }
+    #prompt { height: 5; }
     #prompt:focus { border: solid $primary; }
     #launch-status { height: auto; max-height: 3; overflow-y: auto; margin: 0 2; }
     #launch-buttons { height: 3; margin: 0 2; }
@@ -122,11 +143,12 @@ class LauncherScreen(Screen):
         self.selected = selected or book.default_profile
         self.pending: tuple[RuntimeProfile, LaunchRequest] | None = None
         self.check_key: tuple[str, str] | None = None
+        self.prompt_height: int | None = None
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield ConsoleHeader()
         with VerticalScroll(id="launch-form", can_focus=False):
-            yield Static("New agent run", classes="title")
+            yield Static(Rule("New agent run", align="left", style="dim"), classes="title")
             with Horizontal(id="runtime-row"):
                 yield Label("Runtime profile")
                 yield Select(
@@ -134,6 +156,7 @@ class LauncherScreen(Screen):
                     id="profile",
                     value=self.selected if self.selected else Select.NULL,
                     prompt="No runtime configured",
+                    allow_blank=not self.book.profiles,
                 )
             if not self.book.profiles:
                 yield Static(
@@ -152,7 +175,7 @@ class LauncherScreen(Screen):
             yield Static(
                 "Check before starting work; success is not execution approval.", classes="help"
             )
-            yield Static("Run settings", classes="title")
+            yield Static(Rule("Run settings", align="left", style="dim"), classes="title")
             with Grid(id="run-settings"):
                 with Vertical():
                     yield Label("Task")
@@ -188,13 +211,37 @@ class LauncherScreen(Screen):
                     yield Label("Retries 0–3")
                     yield Input("0", id="retries", type="integer", tooltip="Max retries: 0–3")
                 with Vertical():
-                    yield Label("Execution · OFF", id="execution-state")
-                    yield Checkbox("Allow execution", value=False, id="allow-execution")
+                    yield Label("Allow execution: OFF", id="execution-state")
+                    yield Switch(
+                        False,
+                        animate=False,
+                        id="allow-execution",
+                        tooltip="Allow execution: click or press Space to toggle",
+                    )
             yield Static(
                 "Execution is OFF. ai-agent decides workspace and tool permissions.",
                 id="execution-note",
             )
-            yield Label("Prompt")
+            with Horizontal(id="prompt-heading"):
+                yield Label("Prompt")
+                yield ActionButton(
+                    "[-]",
+                    id="prompt-smaller",
+                    classes="prompt-size",
+                    tooltip="Reduce prompt height",
+                )
+                yield ActionButton(
+                    "[+]",
+                    id="prompt-larger",
+                    classes="prompt-size",
+                    tooltip="Increase prompt height",
+                )
+                yield ActionButton(
+                    "Auto",
+                    id="prompt-auto",
+                    classes="prompt-size",
+                    tooltip="Restore automatic prompt height",
+                )
             yield TextArea(
                 id="prompt", tooltip="Not saved; cleared on Start, including undo history"
             )
@@ -227,11 +274,20 @@ class LauncherScreen(Screen):
         if self.is_mounted:
             for selector in ("#profile", "#task", "#provider", "#model", "#verify", "#retries"):
                 self.query_one(selector).compact = short
+            self.size_prompt()
 
-    def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
-        if event.checkbox.id == "allow-execution":
+    def size_prompt(self) -> None:
+        maximum = max(5, min(20, self.size.height - 10))
+        automatic = 8 if self.has_class("roomy") else 5
+        height = min(maximum, self.prompt_height or automatic)
+        self.query_one("#prompt").styles.height = height
+        self.query_one("#prompt-smaller", Button).disabled = height <= 5
+        self.query_one("#prompt-larger", Button).disabled = height >= maximum
+
+    def on_switch_changed(self, event: Switch.Changed) -> None:
+        if event.switch.id == "allow-execution":
             label = self.query_one("#execution-state", Label)
-            label.update("Execution · ENABLED" if event.value else "Execution · OFF")
+            label.update("Allow execution: ENABLED" if event.value else "Allow execution: OFF")
             label.set_class(event.value, "enabled")
             self.query_one("#execution-note", Static).update(
                 "May change files and run tools. ai-agent remains the final authority."
@@ -251,7 +307,7 @@ class LauncherScreen(Screen):
             self.query_one("#model", Input).value = profile.model
             self.query_one("#verify", Select).value = profile.default_verify
             self.query_one("#retries", Input).value = str(profile.default_max_retries)
-        self.query_one("#allow-execution", Checkbox).value = False
+        self.query_one("#allow-execution", Switch).value = False
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "profile":
@@ -296,12 +352,27 @@ class LauncherScreen(Screen):
             model=self.query_one("#model", Input).value.strip(),
             verify=str(self.query_one("#verify", Select).value),
             max_retries=retry_count,
-            allow_execution=False if check else self.query_one("#allow-execution", Checkbox).value,
+            allow_execution=False if check else self.query_one("#allow-execution", Switch).value,
         )
         preflight(profile, request, check=check)
         return profile, request
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id in ("prompt-smaller", "prompt-larger", "prompt-auto"):
+            height = int(self.query_one("#prompt").styles.height.value)
+            self.prompt_height = (
+                None
+                if event.button.id == "prompt-auto"
+                else max(
+                    5,
+                    min(
+                        max(5, min(20, self.size.height - 10)),
+                        height + (3 if event.button.id == "prompt-larger" else -3),
+                    ),
+                )
+            )
+            self.size_prompt()
+            return
         if event.button.id == "quit-launcher":
             self.app.exit(0)
             return
@@ -330,7 +401,7 @@ class LauncherScreen(Screen):
         try:
             self.open_monitor(profile, request, check=False)
             self.query_one("#prompt", TextArea).load_text("")
-            self.query_one("#allow-execution", Checkbox).value = False
+            self.query_one("#allow-execution", Switch).value = False
         except LaunchError as error:
             self.show_status(str(error))
 

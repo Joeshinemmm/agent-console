@@ -9,7 +9,7 @@ import asyncio
 import pytest
 from test_launcher_ui import book as shared_book
 from test_ui_polish import MonitorProbe, monitor_ready
-from textual.widgets import Button, Checkbox, Input, Select, TextArea
+from textual.widgets import Button, Input, Select, Switch, TextArea
 
 from agent_console.sources import SourceItem
 from agent_console.ui.components import AGENTS
@@ -237,7 +237,7 @@ async def test_mid_size_button_family_and_safe_confirmation(book, tmp_path, size
     async with app.run_test(size=size) as pilot:
         app.query_one("#workspace", Input).value = str(tmp_path)
         app.query_one("#prompt", TextArea).load_text("Synthetic preview")
-        app.query_one("#allow-execution", Checkbox).value = True
+        app.query_one("#allow-execution", Switch).value = True
         await pilot.pause()
         buttons = [
             app.query_one(selector, Button)

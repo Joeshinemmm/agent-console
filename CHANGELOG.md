@@ -22,6 +22,16 @@
 - 실행 중 버튼 위치가 이동하지 않는 고정 action bar 유지
 - 80×24, 110×28, 120×30, 120×34, 160×50에서 실제 합성 terminal cell 및 panel clipping 검사
 
+### User feedback pass
+
+- compact 입력의 경계·배경 및 설정 구분선을 추가하고 드롭다운 메뉴 테두리를 유지
+- 설정 행의 가로 배치 CSS가 Select 내부에 적용되어 메뉴가 옆으로 열리던 문제 수정
+- Allow execution을 기본 OFF인 스위치로 교체하고 명시적 승인·확인 흐름 유지
+- 버튼 기본 입체형 hover/pressed 스타일을 제거해 평면 외곽선 유지
+- Launcher/Monitor에서 작동하지 않는 기본 명령 메뉴 아이콘 제거
+- Prompt 높이 축소·확대·자동 복원 추가; 편집 내용·undo 및 고정 action 유지
+- 메뉴 위치·버튼 상태·크기 조절을 실제 합성 terminal cell과 viewport로 검증
+
 UI/UX Polish Candidate이며 패키지 버전은 0.2.0을 유지한다.
 합성 이벤트 기반 검증과 사용자의 실제 visual/live 검증을 구분하며, 후자는 아직 미완료다.
 
