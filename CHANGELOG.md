@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.1] - Unreleased
+
+- Launcher의 넓은 화면 2열 배치와 80×24 스크롤 fallback, Prompt 및 고정 action 접근성 개선
+- Workspace 상태 배지, Execution OFF/ENABLED 표시 및 선택 값에 맞는 짧은 도움말
+- 확인창 설정 정렬, Cancel의 disabled처럼 보이던 focus 반전 스타일 수정 및 안전한 초기 focus 유지
+- Launcher/Monitor Tab 탐색 연결 수정, 버튼의 focus·pressed·disabled 시각적 구분
+- Monitor의 짧은 run ID, 내용에 맞는 Timeline 높이, 중립 panel 테두리와 focus 강조
+- non-idle component 우선 표시, terminal 결과 및 상태 우선 summary 표시
+- stream/process 종료 후 Cancel 숨김과 Back to Launcher 강조; 종료 전 취소 동작 유지
+- 세 가지 viewport와 keyboard/mouse 동작에 대한 synthetic UI 회귀 테스트
+
+UI/UX Polish Candidate이며 패키지 버전은 0.2.0을 유지한다.
+합성 이벤트 기반 검증과 사용자의 실제 visual/live 검증을 구분하며, 후자는 아직 미완료다.
+
 ## [0.2.0] - 2026-10-06
 
 ### Added

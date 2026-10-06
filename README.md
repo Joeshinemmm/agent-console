@@ -130,22 +130,29 @@ target으로 사용한 self-hosting E2E 검증입니다. 범용 자율 작업이
 ```text
 AGENT CONSOLE
 Run [synthetic-developer-run                  v]
-Run synthetic-developer-run   COMPLETED   [stream ended]
-┌ Timeline · sequence order ──────────────────────────┐
+Run syntheti…   COMPLETED   [stream ended]
+┌ Timeline ──────────────────────────────────────────┐
 │ Seq   Elapsed   Component   Event / activity        │
 │   1    0.006s   Main        Run started             │
 │ ...                                                │
 │  12    4.315s   Main        Run completed           │
 └────────────────────────────────────────────────────┘
-┌ Components ─────────────┐ ┌ Current activity ───────┐
-│ Main        Completed  │ │ Cleanup                 │
-│ Developer   Completed  │ │ Cleanup completed       │
-│ Codex       Completed  │ │                         │
-│ Test        Idle       │ │                         │
+┌ Components ─────────────┐ ┌ Run result ─────────────┐
+│ Main        Completed  │ │ Run completed           │
+│ Developer   Completed  │ │ Events 12 · Errors 0    │
+│ Codex       Completed  │ │ Process exit 0          │
+│ Test        Idle       │ │ Stream ended            │
 └────────────────────────┘ └─────────────────────────┘
-Elapsed 4.315s   Events 12   Errors 0   COMPLETED
-Q Quit   Ctrl+C Stop   Tab Panel
+COMPLETED   Elapsed 4.315s   Events 12   Errors 0
+Q Quit   Ctrl+C Stop / Quit   Tab Next   Shift+Tab Previous
 ```
+
+0.2.1 UI/UX Polish Candidate의 화면 구성이다. 전체 run ID는 selector에서 확인하며,
+Timeline은 이벤트 수에 맞춰 늘어나고 일정 높이 이후 내부에서 스크롤한다.
+일반 panel은 중립 테두리, focus된 panel은 강조 테두리를 사용한다.
+Launcher에서 연 Monitor는 stream/process 종료 후 Cancel 대신 **Back to Launcher**를 강조한다.
+terminal event를 받았더라도 process가 아직 끝나지 않았다면 Cancel을 유지한다.
+실제 새 화면의 사용자 visual/live 검증은 아직 완료하지 않았다.
 
 ## Installation
 
@@ -182,6 +189,12 @@ Launcher의 기본 사용 순서는 다음과 같습니다. 실제 등록 명령
 8. 확인 창에서 설정을 검토하고 **Start**를 누릅니다.
 9. 기존 Monitor에서 진행과 종료 결과를 관찰합니다.
 10. 완료 후 **Back to Launcher**로 돌아옵니다.
+
+Launcher는 120×40 / 160×50에서 Run settings를 2열로 배치해 Prompt와 action을 함께 보여준다.
+80×24에서는 1열 스크롤을 사용하며 action은 하단에 유지된다. Tab / Shift+Tab으로 이동한다.
+Workspace 옆의 Unchecked / Checking / Valid / Invalid와 Execution의 OFF / ENABLED를 확인한다.
+Workspace 검증 성공은 실행 승인이 아니다. 확인창은 Cancel에 먼저 focus되며,
+Enter는 focus된 버튼을 실행하고 Esc는 확인창을 취소한다.
 
 가상환경의 `Scripts` 또는 `bin`이 PATH에 있는 경우:
 

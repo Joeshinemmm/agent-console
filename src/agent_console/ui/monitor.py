@@ -8,10 +8,12 @@ from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Select, Static
 from textual.worker import Worker, WorkerCancelled
 
-from agent_console.presentation import STYLES, description
+from agent_console.presentation import STYLES
 from agent_console.sources import ClosableSource
 from agent_console.state.session import Session, consume
+from agent_console.ui.activity import activity_text
 from agent_console.ui.components import Components
+from agent_console.ui.controls import ActionButton
 from agent_console.ui.summary import summary
 from agent_console.ui.timeline import Timeline
 
@@ -19,18 +21,32 @@ from agent_console.ui.timeline import Timeline
 class MonitorScreen(Screen):
     TITLE = "AGENT CONSOLE"
     ENABLE_COMMAND_PALETTE = False
-    BINDINGS = [("q", "quit", "Quit"), ("ctrl+c", "quit", "Stop"), ("tab", "focus_next", "Panel")]
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("ctrl+c", "quit", "Stop / Quit"),
+        ("tab", "app.focus_next", "Next"),
+        ("shift+tab", "app.focus_previous", "Previous"),
+    ]
     DEFAULT_CSS = """
-    Screen { background: $surface; }
+    MonitorScreen { background: $surface; }
     #run-picker { margin: 0 1; height: 3; }
     #run-status { margin: 0 1; height: 1; }
-    Timeline { margin: 0 1; border: round $primary; height: 1fr; min-height: 6; }
+    #monitor-body { height: 1fr; }
+    Timeline, #component-scroll, #activity, #summary {
+        border: round $foreground 20%; border-title-color: $text-muted; border-title-style: bold;
+    }
+    Timeline { margin: 0 1; height: 8; min-height: 4; }
+    Timeline:focus { border: solid $primary; }
     #details { margin: 0 1; height: 12; }
-    #component-scroll { width: 1fr; border: round $primary; padding: 0 1; }
-    #activity { width: 1fr; height: 1fr; border: round $primary; padding: 0 1; }
+    #component-scroll { width: 1fr; padding: 0 1; }
+    #component-scroll:focus-within { border: solid $primary; }
+    #activity { width: 1fr; height: 1fr; padding: 0 1;
+                overflow-y: auto; }
+    #activity:focus { border: solid $primary; }
     #summary { margin: 0 1; height: auto; min-height: 3; max-height: 5;
-               overflow-y: auto; border: round $primary; }
-    #diagnostics { margin: 0 1; height: 4; color: $warning; }
+               overflow-y: auto; }
+    #summary:focus { border: solid $primary; }
+    #diagnostics { margin: 0 1; height: auto; max-height: 2; overflow-y: auto; color: $warning; }
     #monitor-controls { height: 3; margin: 0 1; }
     #monitor-controls Button { margin-right: 1; }
     """
@@ -53,23 +69,26 @@ class MonitorScreen(Screen):
         yield Header()
         yield Select([], prompt="Waiting for events", id="run-picker")
         yield Static("Waiting for JSONL stream…", id="run-status", markup=False)
-        yield Timeline(id="timeline")
-        with Horizontal(id="details"):
-            with VerticalScroll(id="component-scroll"):
-                yield Components(id="components")
-            yield Static("Waiting for activity", id="activity", markup=False)
-        yield Static("No events received", id="summary", markup=False)
-        yield Static("", id="diagnostics", markup=False)
+        with VerticalScroll(id="monitor-body", can_focus=False):
+            yield Timeline(id="timeline")
+            with Horizontal(id="details"):
+                with VerticalScroll(id="component-scroll"):
+                    yield Components(id="components")
+                yield Static("Waiting for activity", id="activity", markup=False)
+            yield Static("No events received", id="summary", markup=False)
+            yield Static("", id="diagnostics", markup=False)
         if self.on_back:
             with Horizontal(id="monitor-controls"):
-                yield Button("Cancel Run", id="cancel-run", variant="warning")
-                yield Button("Back to Launcher", id="back-launcher", disabled=True)
+                yield ActionButton("Cancel Run", id="cancel-run", variant="warning")
+                yield ActionButton("Back to Launcher", id="back-launcher", disabled=True)
         yield Footer()
 
     def on_mount(self) -> None:
         self.query_one("#component-scroll").border_title = "Components"
         self.query_one("#activity").border_title = "Current activity"
         self.query_one("#summary").border_title = "Run summary"
+        for selector in ("#activity", "#summary", "#diagnostics"):
+            self.query_one(selector).can_focus = True
         self.consumer = self.run_worker(consume(self.source, self.session), name="event-stream")
         self.set_interval(0.1, self.refresh_session)
 
@@ -78,10 +97,20 @@ class MonitorScreen(Screen):
 
     def on_resize(self, event: Resize) -> None:
         if self.is_mounted:
-            compact = event.size.height < 34
-            self.query_one("#details").styles.height = (4 if self.on_back else 8) if compact else 12
-            self.query_one("#diagnostics").styles.height = 2 if compact else 4
-            self.query_one(Timeline).styles.min_height = 4 if compact else 6
+            self.fit_panels()
+
+    def fit_panels(self) -> None:
+        compact = self.size.height < 34
+        details_height = (4 if self.on_back else 6) if compact else 12
+        self.query_one("#details").styles.height = details_height
+        diagnostics = 2 if self.session.diagnostics or self.session.stderr_bytes else 0
+        self.query_one("#diagnostics").display = bool(diagnostics)
+        # Reserve summary/actions before growing the timeline; long streams scroll inside it.
+        available = self.size.height - (
+            6 + details_height + 5 + diagnostics + (3 if self.on_back else 0)
+        )
+        timeline = self.query_one(Timeline)
+        timeline.styles.height = max(4, min(max(7, timeline.row_count + 3), 18, available))
 
     def refresh_session(self, force: bool = False) -> None:
         if not force and self.last_revision == self.session.revision:
@@ -98,18 +127,20 @@ class MonitorScreen(Screen):
         if isinstance(selected, str) and selected in self.session.runs:
             run = self.session.runs[selected]
             status = run.display_status(self.session.ended)
-            label = Text(f"Run {run.run_id}   ")
+            short_id = run.run_id if len(run.run_id) <= 16 else run.run_id[:8] + "…"
+            label = Text(f"Run {short_id}   ")
             label.append(str(status).upper(), style=STYLES[status])
             label.append("   [stream ended]" if self.session.ended else "   [receiving]")
             if self.session.cancelled:
                 label.append("   [cancelled locally]", style="yellow")
             self.query_one("#run-status", Static).update(label)
+            self.query_one("#run-status").tooltip = run.run_id
             self.query_one(Timeline).show_run(run)
             self.query_one(Components).show_run(run)
-            if run.activity:
-                activity = Text(run.activity.component.capitalize() + "\n\n", style="bold")
-                activity.append(description(run.activity))
-                self.query_one("#activity", Static).update(activity)
+            self.query_one("#activity").border_title = (
+                "Run result" if run.has_terminal_event or self.session.ended else "Current activity"
+            )
+            self.query_one("#activity", Static).update(activity_text(run, self.session))
             self.query_one("#summary", Static).update(summary(run, self.session))
         elif self.session.ended:
             self.query_one("#run-status", Static).update("Stream ended without a valid run")
@@ -117,9 +148,18 @@ class MonitorScreen(Screen):
         if self.session.stderr_bytes:
             diagnostics.append(f"stderr: {self.session.stderr_bytes} bytes received (text hidden)")
         self.query_one("#diagnostics", Static).update("\n".join(diagnostics))
+        self.fit_panels()
         if self.on_back:
-            self.query_one("#cancel-run", Button).disabled = self.session.ended
-            self.query_one("#back-launcher", Button).disabled = not self.session.ended
+            cancel = self.query_one("#cancel-run", Button)
+            back = self.query_one("#back-launcher", Button)
+            cancel_had_focus = cancel.has_focus
+            # A terminal event can precede process exit: keep Cancel until ownership ends.
+            cancel.display = not self.session.ended
+            cancel.disabled = self.session.ended
+            back.disabled = not self.session.ended
+            back.variant = "primary" if self.session.ended else "default"
+            if self.session.ended and cancel_had_focus:
+                back.focus()
 
     async def stop(self) -> None:
         if self.consumer and not self.consumer.is_finished:
