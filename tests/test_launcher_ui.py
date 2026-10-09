@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from textual.widgets import Button, Checkbox, Input, Select, Static, TextArea
+from textual.widgets import Button, Input, Select, Static, Switch, TextArea
 
 from agent_console.launcher.profile import ProfileBook, RuntimeProfile
 from agent_console.ui.launcher import ConfirmRun, LauncherApp, LauncherScreen
@@ -53,9 +53,9 @@ async def test_launcher_confirmation_success_and_back(book, tmp_path, size):
         assert app.query_one("#model", Input).value == "synthetic-model"
         assert app.query_one("#verify", Select).value == "none"
         assert app.query_one("#retries", Input).value == "0"
-        assert not app.query_one("#allow-execution", Checkbox).value
+        assert not app.query_one("#allow-execution", Switch).value
         fill(app, tmp_path)
-        app.query_one("#allow-execution", Checkbox).value = True
+        app.query_one("#allow-execution", Switch).value = True
         await pilot.click("#start-run")
         assert isinstance(app.screen, ConfirmRun)
         assert "ENABLED" in app.screen.description
@@ -70,7 +70,7 @@ async def test_launcher_confirmation_success_and_back(book, tmp_path, size):
         await settle(app, pilot)
         assert app.controller.session.exit_code == 0
         assert "COMPLETED" in str(app.screen.query_one("#run-status", Static).render())
-        assert "docs/example.md" in str(app.screen.query_one("#summary", Static).render())
+        assert "docs/example.md" in str(app.screen.query_one("#activity", Static).render())
         assert app.screen.query_one("#back-launcher").region.bottom <= size[1]
         await pilot.click("#back-launcher")
         assert isinstance(app.screen, LauncherScreen)
@@ -78,7 +78,7 @@ async def test_launcher_confirmation_success_and_back(book, tmp_path, size):
         assert area.text == ""
         area.undo()
         assert area.text == ""
-        assert not app.query_one("#allow-execution", Checkbox).value
+        assert not app.query_one("#allow-execution", Switch).value
         assert (tmp_path / "docs/example.md").is_file()
 
 
@@ -89,7 +89,7 @@ async def test_workspace_check_ui(book, tmp_path, denied):
     app = LauncherApp(book)
     async with app.run_test(size=(100, 40)) as pilot:
         fill(app, workspace)
-        app.query_one("#allow-execution", Checkbox).value = True
+        app.query_one("#allow-execution", Switch).value = True
         await pilot.click("#check-workspace")
         assert isinstance(app.screen, MonitorScreen)
         await settle(app, pilot)
@@ -140,9 +140,9 @@ async def test_launcher_validation_and_profile_switch(book, tmp_path):
         await pilot.pause(0.3)
         await pilot.click("#start-run")
         assert "prompt" in str(app.query_one("#launch-status", Static).render())
-        app.query_one("#allow-execution", Checkbox).value = True
+        app.query_one("#allow-execution", Switch).value = True
         app.query_one("#profile", Select).value = "other"
         await pilot.pause()
-        assert not app.query_one("#allow-execution", Checkbox).value
+        assert not app.query_one("#allow-execution", Switch).value
         assert app.query_one("#model", Input).value == "other-model"
         assert app.query_one("#verify", Select).value == "pytest"

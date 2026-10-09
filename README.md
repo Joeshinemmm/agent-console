@@ -1,154 +1,99 @@
 # Agent Console
 
-로컬 ai-agent 작업을 시작하고 구조화된 JSONL 실행 이벤트를 실시간 Terminal UI로 관찰하는 독립 client/controller.
+**AI 에이전트의 작업을 시작하고, 진행 과정과 결과를 터미널에서 확인하는 프로그램입니다.**
 
-처음 사용한다면 [설치와 사용 안내서 (HTML)](docs/getting-started.html)를 따라 해보세요.
-Windows PowerShell과 macOS/Linux의 설치, 샘플 실행, 화면 읽기, 실제 Agent 연결 방법을 설명합니다.
-다운로드한 저장소에서 HTML 파일을 브라우저로 열면 안내 화면을 볼 수 있습니다.
-GitHub에서는 HTML 소스가 표시되며, 별도의 웹 주소로 배포된 페이지는 아닙니다.
+개발 작업을 맡겼을 때 “아직 준비 중인지, 파일을 만드는 중인지, 어디서 실패했는지” 알기 어려울 수 있습니다.
+Agent Console은 공개된 실행 기록을 시간순으로 정리하고 작업별 상태와 종료 결과를 보여줍니다.
 
-## Why
+처음 접한다면 [프로젝트 소개 · 설치와 사용 안내 (HTML)](docs/getting-started.html)를 보세요.
+다운로드한 저장소에서 이 파일을 브라우저로 열면 됩니다. GitHub에서는 HTML 소스가 표시되며,
+별도 웹사이트로 배포된 문서는 아닙니다. 실제 에이전트 없이 샘플부터 실행할 수 있습니다.
 
-Agent Console은 관찰 가능한 이벤트를 바탕으로 AI Agent가 무엇을 하는지, 어떤 component가
-실행 중인지, 어디서 실패했는지, 전체 run이 성공·실패·취소됐는지를 보여줍니다.
-별도 `ai-agent`가 공개한 stdout JSONL stream 또는 versioned event log만 소비하며,
-upstream 내부 Python module을 import하거나 모델을 직접 호출하지 않습니다.
-prompt 원문이나 hidden chain-of-thought를 보여주는 도구가 아닙니다.
+## 두 프로젝트의 역할
 
-## Current Status
-
-**v0.2.0 — Live Launcher E2E verified.** 로컬 Runtime Profile, New Run 화면,
-Workspace Check, 실행 확인 및 기존 Monitor 연결을 제공합니다. 사용자가 일반 non-elevated
-PowerShell에서 실제 Workspace Check와 Developer/Codex 문서 생성, Launcher 복귀를 검증했습니다.
-v0.1의 replay/직접 subprocess Monitor 기능도 유지합니다.
-설정과 사용자 검증 순서는 [Run Launcher 안내](docs/run-launcher.md)를 참고하세요.
-
-| 검증 항목 | 상태 | 근거 |
+| 프로젝트 | 하는 일 | 포함 범위 |
 | --- | --- | --- |
-| Fixture replay | Verified | synthetic 성공·실패 fixture 테스트 |
-| Subprocess streaming | Verified | 실제 subprocess pipe 테스트 |
-| Successful / failed run | Verified | 상태 계산·CLI·TUI 테스트 |
-| Real ai-agent JSONL | Verified | 사용자 read-only live 연동 검증 |
-| Real Developer monitoring | Verified | v0.1 사용자 실제 파일 생성 및 TUI 관찰 |
-| Run Launcher Workspace Check | Verified | 사용자 실제 workspace 검증, exit 0, Issues 0 |
-| Run Launcher Developer Live E2E | Verified | 명시적 승인 후 문서 하나 생성, 완료 및 Launcher 복귀 |
-| Production deployment | Not claimed | 검증 범위에 포함하지 않음 |
+| **AI Agent Platform (`ai-agent`)** | 실제 작업을 수행하는 별도 실행 엔진 | Main의 작업 분배, Developer, Browser, Desktop, Training |
+| **Agent Console (`agent-console`, 이 저장소)** | 실행 엔진에 요청을 전달하고 공개 진행 기록을 표시 | 실행 환경 등록, 폴더 검사, 작업 시작, Timeline, 상태·결과 표시 |
 
-v0.2 Live 검증은 Workspace Check와 단일 문서 생성 시나리오에 한정합니다.
-릴리스 변경 사항은 [CHANGELOG](CHANGELOG.md)를 참고하세요.
-
-## Features
-
-- JSONL 파일 replay, stdin 입력, 외부 명령의 실시간 stdout 구독
-- schema v1 검증과 호환성 오류 표시, 잘못된 입력 이후 복구
-- 지원 schema 안의 unknown event/component를 generic event로 표시
-- run별 타임라인, component 상태, 최근 작업, 실행 요약
-- sequence 정렬, 중복 제거, 충돌 및 누락 진단
-- 실패·취소·불완전 실행 구분, subprocess 종료 코드와 stderr 수신량 표시
-- 다중 run 선택, 키보드 탐색, 자동 plain-text 출력
-- synthetic fixture 기반 개발 및 테스트
-- 로컬 Runtime Profile CLI와 Developer/Codex Run Launcher
-- 실행별 모델 override, verify none/pytest/web 선택, max retries 0–3
-- 별도 Workspace Check, 기본 OFF인 Allow execution, Start 확인 대화상자
-- 실행 취소·Launcher 복귀, 공개 상대 경로를 이용한 작은 파일 변경 요약
-
-## Architecture
+두 프로젝트는 **별도 저장소**입니다. Agent Console은 ai-agent 내부 모듈을 가져오거나 모델을 직접 호출하지 않습니다.
+현재 Launcher에서 시작할 수 있는 작업은 **로컬 Developer / Codex**입니다. Browser·Desktop·Training 상태를
+표시할 수 있다는 사실이 이 작업들을 Launcher에서 시작할 수 있다는 뜻은 아닙니다.
 
 ```text
-Agent Console Launcher
-    ↓ RuntimeProfile + LaunchRequest
-CommandBuilder (argv)
+사용자: 작업할 프로젝트 폴더와 요청 입력 → 실행 승인
     ↓
-local ai-agent subprocess
-    ↓ stdout JSONL             file / stdin replay
-    └─────────────┬───────────────────┘
-                  ↓
-         Parser → Event → Reducer
-                  ↓
-               RunState
-                  ↓
-        Textual TUI / plain report
-
-subprocess stderr → byte count (원문 폐기)
-subprocess exit   → 독립적인 process 결과
+Agent Console: 별도 ai-agent 실행
+    ↓
+AI Agent Platform: Main이 Developer로 작업 분배
+    ↓
+Developer → Codex → 선택한 프로젝트의 파일 작업
+    ↓
+ai-agent가 공개 진행 이벤트를 출력
+    ↓
+Agent Console: 진행 단계 · 오류 · 종료 결과 확인
 ```
 
-제어 흐름은 `사용자 → Launcher → Check Workspace → 사용자 Start 승인 → ai-agent →
-Developer/Codex → Target Project`입니다. Check 성공 후에도 별도 Start 승인이 필요하며,
-최종 workspace/실행 권한 판단은 ai-agent에 있습니다.
+Main은 흐름을 관리하는 Python 규칙 기반 구성요소입니다. Developer는 Codex를 사용하는 AI 개발 기능이고,
+Browser는 Playwright 웹 자동화, Desktop은 Windows UI Automation, Training은 학습 파이프라인입니다.
+모든 구성요소가 각각 독립적인 언어 모델을 호출하는 것은 아닙니다.
 
-`models`, `protocol`, `state`, `sources`, `launcher` core는 Textual을 import하지 않습니다.
-UI는 상태를 표시하며 business state를 생성하지 않습니다. 이벤트 종류에 따른 설명은
-`presentation.py`, lifecycle 상태 규칙은 `state/reducer.py`에 모았습니다.
+## 무엇을 할 수 있나요?
 
-Textual은 Python 기반 terminal widget, 비동기 입력, 키보드 탐색, headless UI 테스트를
-지원하므로 선택했습니다. Python 3.13.15 / Textual 8.2.8 환경에서 동작을 검증했습니다.
-설치 지원 범위는 Python 3.11 이상, Textual 8.2 이상 9 미만입니다.
-라이브러리 참고: [Textual](https://textual.textualize.io/),
-[testing guide](https://textual.textualize.io/guide/testing/).
+- **샘플 재생:** 저장된 공개 이벤트 파일로 화면을 익힙니다 (`replay`).
+- **실시간 관찰:** 외부 프로그램의 공개 이벤트를 받습니다 (`run --`).
+- **작업 시작:** Runtime Profile에 실행 환경을 등록하고 Launcher에서 폴더 검사와 작업을 시작합니다 (`profile`, `launch`).
+- **진행과 결과 확인:** Timeline, 여섯 Agent 상태, System 상태, 실행 결과와 수치 요약을 봅니다.
+- **문제 구분:** 작업 실패·취소·종료 이벤트 누락·프로세스 실패를 구분합니다.
 
-## Live Integration
+예를 들어 문서 하나를 만드는 작업은 **폴더 선택 → Check Workspace → 요청 입력 → Allow execution 선택 →
+Start Run 확인 → 진행 확인 → 결과와 실제 파일 확인** 순서입니다. Check 성공은 실행 승인이 아닙니다.
+실제 파일 변경과 도구 실행의 최종 권한 판단은 ai-agent가 담당합니다.
 
-v0.2에서는 사용자가 Runtime Profile을 통해 Launcher에서 실제 Workspace Check와 Developer run을
-시작했습니다. 명시적 Allow execution 및 Start confirmation 이후 `file.created`, `run.completed`,
-`COMPLETED`, `Process exit 0`, `Errors 0`, `Issues 0`, `[stream ended]`를 확인했습니다.
-`docs/v0.2-launcher-smoke.md` 하나만 생성됐고 의도하지 않은 파일 변경은 없었으며 Launcher 복귀도
-정상 확인했습니다. [v0.2 검증 기록](docs/v0.2-launcher-smoke.md)에 사용자 보고 범위를 정리했습니다.
-Production Ready나 모든 ai-agent workflow의 검증을 의미하지 않습니다.
+## 현재 구현과 검증 상태
 
-다음은 v0.1에서 먼저 완료한 직접 subprocess Monitor 검증 기록입니다.
+패키지 버전은 **0.2.0**입니다. UI/UX polish 작업은 현재 범위에서 마무리했으며,
+2026-10-09 사용자 피드백으로 기본 기능의 실제 사용 동작을 확인했습니다.
+전문적인 디자인 검증이나 모든 환경의 안정성을 보증하지는 않습니다.
+후속 변경은 [CHANGELOG의 0.2.1 Unreleased](CHANGELOG.md)에 기록하며 공식 릴리스는 별도입니다.
+UI/UX polish와 안정화의 main 반영·검토 이력은 [PR #1](https://github.com/Joeshinemmm/agent-console/pull/1)에서 확인할 수 있습니다.
 
-별도 ai-agent runtime과의 read-only JSONL 연동에 이어, 일반 non-elevated PowerShell에서
-실제 Developer Agent와 Codex를 사용하는 Live E2E를 사용자가 실행하고 성공을 확인했습니다.
+**Verified**는 아래 명시한 시나리오만 검증했다는 뜻입니다. **Partially Verified**는 구현됐으나 검증 범위가 제한적입니다.
 
-```text
-Agent Console
-    ↓ subprocess
-ai-agent → Main → External Workspace validation
-    ↓ Developer → Codex
-target workspace: smoke 문서 생성
-    ↓ JSONL stdout (진행 및 완료 이벤트)
-Agent Console TUI
-```
+### Agent Console
 
-검증 범위는 external workspace validation, 실제 Developer Agent 및 Codex thread 시작,
-target 파일 생성, `file.created`, Developer·cleanup 완료, `run.completed`,
-TUI 실시간 표시, subprocess exit `0`입니다. TUI에서 `RUNNING → COMPLETED`,
-`Errors 0`, `Issues 0`, `[stream ended]`도 확인했습니다.
+| 항목 | 상태 | 확인 범위 |
+| --- | --- | --- |
+| JSONL Replay / Live Subprocess Monitoring | Verified | synthetic 파일·stdin·실제 child pipe 테스트, 사용자 live 연동 |
+| Timeline / Component Status / Run Summary | Verified | 순서·중복·다중 run·실패 처리, headless 및 viewport 테스트 |
+| Runtime Profile / Workspace Check / Run Launcher | Verified | 합성 테스트와 사용자 실제 폴더 검사·실행 승인·복귀 |
+| 실제 Developer Launcher E2E | Verified | 단일 문서 생성과 종료·파일 확인; 아래 검증 기록 참고 |
+| UI/UX polish | Implemented / Partially Verified | 개선 구현·합성 화면 검사·사용자 기본 동작 확인; 전문 디자인 평가는 미실시 |
+| Filter / Search / Run History | Planned | 미구현 |
+| Web UI / Database / Remote Monitoring / 다른 Task Launcher | Not Supported | 현재 제공하지 않음 |
 
-Live Agent가 생성한 파일은 `docs/live-ai-agent-smoke.md` 하나이며, 다른 프로젝트 파일 변경이나
-commit/push/remote 변경은 없었습니다. 이 결과는 해당 문서 생성 시나리오에서 이 저장소 자체를
-target으로 사용한 self-hosting E2E 검증입니다. 범용 자율 작업이나 운영 환경 배포를 보증하지 않습니다.
+### 별도 AI Agent Platform
 
-검증 근거는 [Live E2E smoke 기록](docs/live-ai-agent-smoke.md)에 일반화해 정리했습니다.
-실제 thread ID, 개인 경로, 원본 이벤트 로그는 공개 문서에 포함하지 않습니다.
+아래는 별도 ai-agent README 및 기존 검증 기록을 읽어 정리한 상태입니다. 이번 점검에서 플랫폼을 수정하거나
+실제 개발·브라우저·Desktop·GPU 작업을 다시 실행하지 않았습니다.
 
-## Screenshot
+| 항목 | 상태 | 검증 범위와 제한 |
+| --- | --- | --- |
+| Main Orchestrator | Implemented / Partially Verified | 규칙 기반 작업 분배; 검증된 흐름에 한정 |
+| Developer Agent | Verified | 제한된 개발·파일 생성 E2E |
+| Browser Agent | Partially Verified | 관리된 localhost의 HTTP·렌더링·클릭·cleanup |
+| Desktop Agent | Partially Verified | 새 빈 Notepad 하나의 제한된 동작 |
+| Training Agent | Partially Verified | 작은 LoRA smoke, checkpoint 저장·resume·reload; 특화 모델 성능 검증 아님 |
+| External Workspace / JSONL Event Stream | Verified | 외부 폴더 검사·schema v1 출력·외부 README 한 개 생성 |
+| 실제 외부 Developer E2E | Verified | 플랫폼의 외부 README 생성 기록과 Console의 문서 생성 검증 |
 
-아래는 화면 구성을 설명하는 ASCII preview이며 실제 캡처가 아닙니다.
+Console의 검증 근거: [직접 Monitor Live E2E](docs/live-ai-agent-smoke.md),
+[Launcher Live E2E](docs/v0.2-launcher-smoke.md).
+사용자 캡처의 README 생성도 단일 파일 시나리오입니다. 임의 웹앱 생성이나 모든 workflow를 검증한 사례로 확대하지 않습니다.
 
-```text
-AGENT CONSOLE
-Run [synthetic-developer-run                  v]
-Run synthetic-developer-run   COMPLETED   [stream ended]
-┌ Timeline · sequence order ──────────────────────────┐
-│ Seq   Elapsed   Component   Event / activity        │
-│   1    0.006s   Main        Run started             │
-│ ...                                                │
-│  12    4.315s   Main        Run completed           │
-└────────────────────────────────────────────────────┘
-┌ Components ─────────────┐ ┌ Current activity ───────┐
-│ Main        Completed  │ │ Cleanup                 │
-│ Developer   Completed  │ │ Cleanup completed       │
-│ Codex       Completed  │ │                         │
-│ Test        Idle       │ │                         │
-└────────────────────────┘ └─────────────────────────┘
-Elapsed 4.315s   Events 12   Errors 0   COMPLETED
-Q Quit   Ctrl+C Stop   Tab Panel
-```
+## 설치
 
-## Installation
-
+Python 3.11 이상이 필요합니다. 이번 검증 환경은 Python 3.13.15 / Textual 8.2.8입니다.
 저장소 root에서 실행합니다. Windows PowerShell에서는 activate 없이 실행할 수 있습니다.
 
 ```powershell
@@ -167,7 +112,7 @@ python3 -m venv .venv
 
 일반 사용자 설치에는 `pip install .`로 개발 의존성을 생략할 수 있습니다.
 
-## Usage
+## 사용하기
 
 Launcher의 기본 사용 순서는 다음과 같습니다. 실제 등록 명령은
 [Runtime Profile 등록 안내](docs/run-launcher.md#1-설치와-runtime-profile-등록)를 참고하세요.
@@ -182,6 +127,19 @@ Launcher의 기본 사용 순서는 다음과 같습니다. 실제 등록 명령
 8. 확인 창에서 설정을 검토하고 **Start**를 누릅니다.
 9. 기존 Monitor에서 진행과 종료 결과를 관찰합니다.
 10. 완료 후 **Back to Launcher**로 돌아옵니다.
+
+Launcher는 110열 이상이면 높이가 낮아도 Run settings를 2열로 유지한다.
+36행 미만에서는 Runtime과 설정을 compact하게 표시하고 일부 도움말은 tooltip으로 제공한다.
+compact 입력은 양쪽 경계와 배경색, 설정 행은 구분선으로 식별하며 드롭다운은 테두리 있는 메뉴로 아래에 열린다.
+Allow execution은 기본 OFF인 스위치이며 클릭 또는 Space로 전환한다.
+Prompt 옆 `[-]` / `[+]`로 높이를 3행씩 조절하고 `Auto`로 기본 높이를 복원한다.
+편집 영역은 최소 3행이며, 확대 시 필요한 경우 폼을 스크롤한다. 입력·undo와 하단 실행 버튼 위치는 유지된다.
+일반 창을 근사한 110×28 / 120×30 / 120×34에서 Prompt와 action의 동시 노출을 검사한다.
+캡처의 정확한 문자 셀 크기를 알 수 없어 여러 중간 크기를 검사한다. 사용자 실제 사용 확인과 자동 viewport 검사는 별도 근거다.
+80×24에서는 1열 스크롤을 사용하며 action은 하단에 유지된다. Tab / Shift+Tab으로 이동한다.
+Workspace 옆의 Unchecked / Checking / Valid / Invalid와 Execution의 OFF / ENABLED를 확인한다.
+Workspace 검증 성공은 실행 승인이 아니다. 확인창은 Cancel에 먼저 focus되며,
+Enter는 focus된 버튼을 실행하고 Esc는 확인창을 취소한다.
 
 가상환경의 `Scripts` 또는 `bin`이 PATH에 있는 경우:
 
@@ -236,6 +194,16 @@ CLI exit code:
 재시도 중 component 실패가 있어도 최종 `run.completed`면 성공할 수 있습니다.
 subprocess exit가 nonzero면 protocol의 Completed 표시를 바꾸지 않고 별도 오류를 표시합니다.
 plain mode는 stream이 끝난 뒤 보고서를 출력합니다.
+
+## 개발자를 위한 구조
+
+`launcher`는 Runtime Profile과 LaunchRequest를 검증하고, shell 없는 argv를 만들어
+`sources`의 subprocess 실행에 전달합니다. `protocol`은 공개 JSONL을 검증하고,
+`models`는 허용된 이벤트 정보만 보관합니다. `state`의 Reducer는 실행별 상태를 계산하며
+`ui`와 `presentation`은 그 결과를 TUI 또는 plain 보고서로 표시합니다.
+
+Parser와 Reducer는 Textual에 의존하지 않습니다. Launcher의 각 실행은 새 Session을 사용하고,
+단일 활성 subprocess 제어와 확인창을 통해 실행 중복 및 의도하지 않은 시작을 막습니다.
 
 ## Event Protocol
 
@@ -319,15 +287,19 @@ pytest 임시 파일은 저장소 내 `.pytest_tmp/`에 생성합니다.
 - Launcher는 로컬 Developer/Codex 하나만 동시에 실행합니다. Profile의 모델 지원 여부는
   runtime이 판단하며 모델 목록을 직접 조회하지 않습니다.
 - 직접 실행한 subprocess만 종료하며 descendant process tree 전체를 관리하지 않습니다.
-  terminal event가 와도 producer가 종료되지 않으면 계속 구독합니다.
+  terminal event가 와도 producer가 종료되지 않으면 계속 구독합니다. 자동 실행 시간 제한은 없습니다.
+  하위 프로세스가 pipe를 열어 두면 EOF도 지연될 수 있습니다. Cancel은 직접 child를 대상으로 합니다.
 - stdin replay는 plain mode이며, subprocess의 대화형 stdin은 지원하지 않습니다.
 - Web UI, network/WebSocket server, database, remote monitoring, persistent run history,
   browser screenshot preview, training graph, GitHub 연동은 없습니다.
 
-## Roadmap
+## 다음 개발 후보
 
-아래는 다음 버전의 검토 후보이며 v0.2.0 구현 범위에 포함되지 않습니다.
+아래 항목은 Planned이며 아직 구현하지 않았습니다. 이번 정리에서는 새 기능을 추가하지 않습니다.
 
 - 파일 변경 요약의 경로 문자 지원 확대
 - run/component 필터와 replay playback 제어
 - 장시간·대량 stream의 중복 검사 인덱스 및 timeline 갱신 최적화
+
+향후 핵심 기능 안정화 이후 전문 UI/UX 디자이너와 협업하여 인터페이스와 사용 경험을 고도화할 계획입니다.
+현재 협업 중이거나 전문 디자인 검증이 완료됐다는 의미는 아닙니다.

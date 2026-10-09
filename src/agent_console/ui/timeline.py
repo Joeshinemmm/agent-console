@@ -9,7 +9,8 @@ TIMELINE_LIMIT = 1000
 
 class Timeline(DataTable):
     def on_mount(self) -> None:
-        self.border_title = "Timeline · sequence order · latest 1,000"
+        self.border_title = "Timeline"
+        self.tooltip = "Sequence order · latest 1,000 events"
         self.add_columns("Seq", "Elapsed", "Component", "Event / activity")
         self.cursor_type = "row"
         self.zebra_stripes = True
