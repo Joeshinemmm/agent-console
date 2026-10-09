@@ -112,7 +112,7 @@ Launcher에서 시작한 Developer 실행의 문서 생성 확인용이라는 �
 
 Monitor에서 Main → Developer → Codex 진행, `file.created`, `run.completed`, `COMPLETED`,
 `Process exit 0`, `Errors 0`, `Issues 0`, `[stream ended]`를 확인한다.
-file event에 지원하는 상대 경로가 있으면 Summary에 `+ docs/v0.2-launcher-smoke.md`가 표시된다.
+file event에 지원하는 상대 경로가 있으면 Run result에 `+ docs/v0.2-launcher-smoke.md`가 표시된다.
 실행 후 **Back to Launcher**로 돌아가 새 요청을 준비할 수 있다.
 
 마지막으로 직접 파일과 Git 상태를 확인한다.
@@ -156,7 +156,7 @@ local cancel은 upstream terminal event를 위조하지 않고 `cancelled locall
 
 Monitor는 기존 parser → Event → reducer → RunState 흐름을 재사용한다. Event에는 원문 message와
 metadata를 보관하지 않으며 workspace/Git boolean과 제한된 상대 파일 경로만 projection한다.
-Summary는 최근 3개 변경 event를 표시하고 source/diff는 읽지 않는다. 절대 경로·상위 경로 이동·제어문자·
+Run result는 최근 3개 변경 event를 표시하고 source/diff는 읽지 않는다. 절대 경로·상위 경로 이동·제어문자·
 민감 파일명 패턴·비 ASCII 경로는 표시에서 제외된다. 임의 secret을 모두 탐지하는 필터는 아니다.
 
 Profile은 credential manager가 아니다. subprocess는 기존 사용자 환경과 인증을 사용하며,

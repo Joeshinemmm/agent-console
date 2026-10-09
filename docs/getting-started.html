@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Agent Console 설치부터 샘플 실행, 화면 읽기, 실제 JSONL 연결까지 따라 하는 안내서">
-  <title>설치와 사용 안내 · Agent Console</title>
+  <meta name="description" content="AI 작업을 시작하고 진행을 확인하는 Agent Console의 역할, 사용 흐름, 설치와 검증 범위">
+  <title>무엇을 하는 도구인가요? · Agent Console</title>
   <style>
     :root { color-scheme: light; --ink: #182b36; --muted: #526571; --line: #d9e3e6; --accent: #09695b; --paper: #fff; --bg: #f3f6f5; }
     * { box-sizing: border-box; }
@@ -84,19 +84,32 @@
       .command, .command-head { background: #f3f3f3; color: #111; }
       .hero { padding: 20px 0; }
     }
+
+    .roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .role { border: 1px solid var(--line); border-radius: 8px; padding: 18px; min-width: 0; }
+    .role h3 { margin-top: 0; }
+    .journey { list-style: none; padding: 0; display: grid; gap: 12px; }
+    .journey li { padding: 16px 20px; margin: 0; border-left: 4px solid var(--accent); background: #eef6f2; }
+    .journey li + li::before { content: '↓'; display: block; color: var(--accent); margin-top: -12px; }
+    .journey b { display: block; }
+    .journey small { display: block; color: var(--muted); }
+    .stages { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; }
+    .stages li { padding: 12px; margin: 0; background: #edf2f3; font-size: 13px; }
+    .stages strong { display: block; color: var(--accent); }
+    .flow a { padding: 8px 14px; border: 1px solid var(--accent); border-radius: 6px; }
+    @media (max-width: 800px) { .roles, .stages { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body data-os="windows">
   <a class="skip" href="#main">본문으로 이동</a>
-  <header>
+  <header id="top">
     <div class="shell">
       <div class="brand"><strong>AGENT CONSOLE</strong><span class="badge">v0.2.0 · 시작 안내서</span></div>
-      <p>v0.2.0의 프로필 등록과 실행 시작 기능은 <a href="run-launcher.md">Run Launcher 안내</a>를 참고하세요. 사용자가 실제 Workspace Check와 Developer 문서 생성 E2E를 검증했습니다.</p>
       <div class="hero">
-        <div class="eyebrow">INSTALL → REPLAY → OBSERVE</div>
-        <h1>설치하고, 샘플을 실행하고,<br>Agent의 작업 흐름을 확인하세요.</h1>
-        <p class="lead">Agent Console은 AI Agent가 보내는 실행 기록을 터미널 화면에 정리해 보여줍니다. 먼저 제공된 샘플로 익혀보세요. 실제 ai-agent나 API key 없이 시작할 수 있습니다.</p>
-        <div class="flow" aria-label="설치 및 사용 순서"><span>01 환경 준비</span>→<span>02 설치</span>→<span>03 샘플 실행</span>→<span>04 실제 연결</span></div>
+        <div class="eyebrow">작업 시작부터 결과 확인까지</div>
+        <h1>AI에게 맡긴 작업,<br>지금 어디까지 진행됐을까요?</h1>
+        <p class="lead">Agent Console은 AI 에이전트의 작업을 시작하고, 진행 과정과 결과를 터미널에서 보여주는 프로그램입니다. 준비 중인지, 파일을 만드는 중인지, 어디서 실패했는지 공개된 실행 기록으로 확인할 수 있습니다.</p>
+        <div class="flow"><a href="#overview">어떻게 동작하나요?</a><a href="#install">설치하고 샘플 보기</a><a href="#progress">어디까지 검증됐나요?</a></div><p class="small">Python 3.11+ · 별도 ai-agent와 연결 · 샘플은 실제 AI 실행 없이 체험 가능</p>
         <div class="os-picker" aria-label="명령어를 표시할 운영체제" hidden>
           <button type="button" data-os-choice="windows" aria-pressed="true">Windows · PowerShell</button>
           <button type="button" data-os-choice="unix" aria-pressed="false">macOS / Linux</button>
@@ -109,6 +122,9 @@
   <div class="shell layout">
     <aside><nav aria-label="안내서 목차">
       <p>GUIDE CONTENTS</p>
+      <a href="#overview">프로젝트 이해하기</a>
+      <a href="#scenario">한 번의 작업 따라가기</a>
+      <a href="#progress">구현과 검증 상태</a>
       <a href="#prepare">01 · 시작 전 준비</a>
       <a href="#install">02 · 설치하기</a>
       <a href="#replay">03 · 첫 화면 띄우기</a>
@@ -116,9 +132,50 @@
       <a href="#live">05 · 실시간으로 보기</a>
       <a href="#connect">06 · 실제 Agent 연결</a>
       <a href="#troubleshoot">문제 해결</a>
+      <a href="#technical">개발자를 위한 기술 구조</a>
       <a href="#development">개발용 설정</a>
+      <a href="#future">향후 계획</a>
     </nav></aside>
     <main id="main">
+      <section id="overview">
+        <h2>작업을 하는 엔진과, 진행을 보는 화면</h2>
+        <p>Agent Console은 작업을 대신 수행하는 엔진과 연결되는 <strong>사용자 인터페이스</strong>입니다. 두 프로젝트는 별도 저장소에 있습니다.</p>
+        <div class="roles">
+          <div class="role"><h3>Agent Console</h3><p>“어디에 무엇을 부탁할지” 입력하고 진행과 결과를 확인하는 화면입니다.</p><ul><li>Runtime Profile: 실행 환경 등록</li><li>Workspace Check: 작업할 폴더 검사</li><li>Run Launcher: 요청과 실행 승인</li><li>Timeline · 상태 · 결과 요약</li></ul></div>
+          <div class="role"><h3>AI Agent Platform · ai-agent</h3><p>요청을 받아 실제 작업을 수행하고, 그 진행을 Console에 알려주는 별도 실행 엔진입니다.</p><ul><li>Main: 작업 분배와 흐름 관리</li><li>Developer: AI 개발 작업</li><li>Browser · Desktop: 자동화</li><li>Training: 모델 학습 파이프라인</li></ul></div>
+        </div>
+        <h3>현재 Launcher의 Developer 작업 흐름</h3>
+        <ol class="journey" aria-label="요청 전달과 실행 이벤트의 돌아오는 흐름">
+          <li><b>1. 사용자 → Agent Console</b>작업할 프로젝트 폴더와 요청을 입력하고 실행을 승인합니다.</li>
+          <li><b>2. Agent Console → AI Agent Platform</b>등록한 별도 실행 엔진을 시작합니다. <small>Console이 엔진의 코드를 포함하거나 직접 모델을 호출하지 않습니다.</small></li>
+          <li><b>3. Main → Developer → Codex</b>Main이 작업을 분배하고, Developer가 Codex를 이용해 선택한 프로젝트의 파일을 작업합니다. <small>파일 변경과 도구 실행 권한은 ai-agent가 최종 판단합니다.</small></li>
+          <li><b>4. AI Agent Platform → 공개 실행 이벤트 → Agent Console</b>“작업 시작”, “파일 생성”, “완료” 등의 기록이 돌아옵니다. Console은 이를 진행 화면으로 정리합니다. <small>공개된 실행 기록이며 모델의 내부 사고 과정이나 파일 내용은 아닙니다.</small></li>
+        </ol>
+        <p class="note">현재 Launcher는 <strong>로컬 Developer / Codex</strong>만 시작할 수 있습니다. Browser·Desktop·Training 상태를 표시하는 것과 해당 작업을 시작하는 기능은 다릅니다.</p>
+        <details><summary>모든 구성요소가 각각 AI 모델인가요?</summary>
+          <ul><li><strong>Main:</strong> Python 규칙으로 작업을 고르고 흐름을 관리합니다.</li><li><strong>Developer:</strong> Codex를 활용하는 AI 기반 개발 기능입니다.</li><li><strong>Browser:</strong> Playwright를 이용한 웹 자동화입니다.</li><li><strong>Desktop:</strong> Windows UI Automation으로 창과 컨트롤을 조작합니다.</li><li><strong>Training:</strong> 모델 학습·검사 파이프라인입니다. 작은 학습 테스트 성공은 모델 성능의 완성을 뜻하지 않습니다.</li></ul>
+          <p>이 기능들은 별도 ai-agent에 속합니다. Agent Console은 이들을 구현하는 프로그램이 아니며, 모든 구성요소가 독립적인 언어 모델을 쓰는 것도 아닙니다.</p>
+        </details>
+      </section>
+      <section id="scenario">
+        <h2>문서 하나를 만드는 작업이라면</h2>
+        <p>프로젝트 폴더를 선택하고 문서 생성을 요청하면 다음 순서로 진행됩니다.</p>
+        <ol class="stages"><li><strong>01 요청</strong>폴더와 할 일을 입력</li><li><strong>02 준비·검사</strong>Check Workspace로 폴더 확인</li><li><strong>03 실행</strong>실행 허용과 Start 승인</li><li><strong>04 결과 확인</strong>진행·파일 변경·종료 코드 확인</li><li><strong>05 완료</strong>실제 파일을 보고 Launcher로 복귀</li></ol>
+        <ol><li><strong>Workspace</strong>는 수정 대상 프로젝트 폴더입니다. ai-agent가 설치된 폴더와 구분하세요.</li><li><strong>Prompt</strong>에 할 일을 적습니다. 높이는 [-] / [+]로 조절하고 Auto로 복원합니다.</li><li><strong>Allow execution</strong>을 직접 켠 후 Start Run을 누릅니다. 확인창에서는 Cancel이 먼저 선택됩니다.</li><li>Main이 Developer 작업으로 연결하고 Developer가 Codex를 이용해 파일 작업을 수행합니다.</li><li><strong>Timeline</strong>에서 진행을 보고 <strong>Run result</strong>에서 결과를 확인합니다.</li><li>실제 파일과 변경 범위를 확인한 뒤 <strong>Back to Launcher</strong>로 돌아옵니다.</li></ol>
+        <p class="note">실제 검증은 README 또는 smoke 문서 <strong>한 개 생성</strong>과 진행·완료·복귀 확인에 한정됩니다. <a href="v0.2-launcher-smoke.md">Launcher 검증 기록</a>에서 범위를 확인하세요.</p>
+        <p>“간단한 웹페이지를 만들어줘”도 요청 흐름을 설명하는 예시가 될 수 있습니다. 다만 이는 <strong>동작 설명용 예시</strong>이며, Console에서 모든 웹페이지 생성과 품질 검증이 완료됐다는 뜻은 아닙니다.</p>
+      </section>
+      <section id="progress">
+        <h2>현재 어디까지 진행됐나요?</h2>
+        <p><strong>패키지 0.2.0</strong> · 후속 변경은 0.2.1 Unreleased입니다. UI/UX 개선은 현재 범위에서 마무리했으며, 2026-10-09 사용자 피드백으로 기본 기능의 실제 사용 동작을 확인했습니다. 공식 릴리스와 main 병합은 별도 절차입니다. 병합 상태는 <a href="https://github.com/Joeshinemmm/agent-console/pulls">GitHub PR</a>을 기준으로 확인하세요.</p>
+        <h3>Agent Console</h3>
+        <ul><li><strong>Verified — 구현·범위 내 검증 완료:</strong> Replay, Live Subprocess Monitoring, Timeline, Component Status, Run Summary, Runtime Profile, Workspace Check, Run Launcher.</li><li><strong>Verified — 사용자 실제 실행:</strong> Developer/Codex 단일 문서 생성과 Launcher 복귀. <a href="live-ai-agent-smoke.md">Monitor 기록</a> · <a href="v0.2-launcher-smoke.md">Launcher 기록</a></li><li><strong>Implemented / Partially Verified:</strong> UI/UX polish 구현·합성 화면 검사·사용자 기본 동작 확인. 전문 디자인 검증과 모든 환경의 보장은 포함하지 않습니다.</li><li><strong>Planned:</strong> Timeline Filter, Search, Run History. 아직 없습니다.</li><li><strong>Not Supported:</strong> Web UI, Database, Remote Monitoring, 다른 Task의 Launcher.</li></ul>
+        <h3>별도 AI Agent Platform</h3>
+        <p class="small">별도 ai-agent README와 기존 검증 기록을 읽어 정리했습니다. 이번 점검에서 플랫폼 작업을 재실행하지 않았습니다.</p>
+        <ul><li><strong>Main — Implemented / Partially Verified:</strong> 규칙 기반 분배와 검증된 실행 흐름.</li><li><strong>Developer — Verified:</strong> 제한된 개발·파일 생성 E2E.</li><li><strong>Browser — Partially Verified:</strong> 관리된 localhost의 HTTP·렌더링·클릭·cleanup.</li><li><strong>Desktop — Partially Verified:</strong> 새 빈 Notepad의 제한된 동작.</li><li><strong>Training — Partially Verified:</strong> 작은 LoRA smoke와 checkpoint 저장·resume·reload. 코딩 특화 모델의 성능 검증이 아닙니다.</li><li><strong>External Workspace / JSONL / 외부 Developer E2E — Verified:</strong> 외부 폴더 검사, schema v1 출력, 외부 README 한 개 생성.</li></ul>
+        <p class="note warm">Verified는 적힌 시나리오만 확인했다는 뜻입니다. Production Ready 또는 범용 자율 작업의 보증이 아닙니다.</p>
+      </section>
+
       <section id="prepare">
         <h2><span class="number">01</span>시작 전 준비</h2>
         <ul>
@@ -144,7 +201,7 @@
         <h3>3. 설치 확인하기</h3>
         <div class="command" data-platform="windows"><div class="command-head">PowerShell</div><pre><code>.\.venv\Scripts\agent-console.exe --help</code></pre></div>
         <div class="command" data-platform="unix"><div class="command-head">macOS / Linux</div><pre><code>.venv/bin/agent-console --help</code></pre></div>
-        <p class="expected">확인할 결과: 도움말에 <strong>replay</strong>와 <strong>run</strong> 명령이 보이면 설치 완료입니다.</p>
+        <p class="expected">확인할 결과: 도움말에 <strong>replay · run · profile · launch</strong> 명령이 보이면 설치 완료입니다.</p>
       </section>
       <section id="replay">
         <h2><span class="number">03</span>첫 화면 띄우기</h2>
@@ -171,9 +228,9 @@
         <div class="table-wrap"><table><thead><tr><th scope="col">화면 영역</th><th scope="col">의미</th></tr></thead><tbody>
           <tr><td>Run 선택 / 상태</td><td>어떤 실행을 보고 있는지와 전체 결과를 표시합니다. 여러 run이 있으면 상단에서 선택합니다.</td></tr>
           <tr><td>Timeline</td><td>실행 기록을 sequence 순서로 보여줍니다. 오류는 색상과 ERROR 문구로 구분합니다.</td></tr>
-          <tr><td>Components</td><td>Main, Developer, Codex, Test 등의 마지막 lifecycle 상태를 표시합니다.</td></tr>
-          <tr><td>Current activity</td><td>가장 최근의 non-run 이벤트를 작업 설명으로 보여줍니다.</td></tr>
-          <tr><td>Run summary</td><td>기록된 경과 시간, 이벤트 수, 오류 수, 전체 결과를 요약합니다. Issues는 입력·관측 진단 수입니다.</td></tr>
+          <tr><td>Agents / System</td><td>여섯 Agent 상태와 Main·Workspace·Git 등 보조 구성요소의 마지막 상태를 구분해 표시합니다.</td></tr>
+          <tr><td>Current activity / Run result</td><td>실행 중에는 최근 작업, 종료 시에는 결과·프로세스 종료 코드·최근 파일 변경을 보여줍니다.</td></tr>
+          <tr><td>Run summary</td><td>기록된 경과 시간, 이벤트 수, 오류 수를 요약합니다. Issues는 입력·관측 진단 수입니다.</td></tr>
         </tbody></table></div>
         <p><kbd>Tab</kbd> 영역 이동 · <kbd>↑</kbd> <kbd>↓</kbd> 목록 탐색 · <kbd>q</kbd> 종료 · <kbd>Ctrl</kbd> + <kbd>C</kbd> 중단</p>
         <p class="note">어떤 component가 실패해도 재시도 후 run 전체는 성공할 수 있습니다. 전체 결과는 <code>run.completed</code>, <code>run.failed</code>, <code>run.cancelled</code>를 기준으로 판단합니다. 종료 이벤트가 없으면 <strong>Incomplete</strong>로 표시합니다.</p>
@@ -188,23 +245,15 @@
         <p><code>--</code> 앞은 Agent Console의 옵션, 뒤는 실행할 외부 명령입니다. Python의 <code>-u</code>는 출력을 모아두지 않고 바로 전달하도록 합니다.</p>
       </section>
       <section id="connect">
-        <h2><span class="number">06</span>실제 Agent 연결하기</h2>
-        <p>샘플이 정상 동작하면 외부 프로그램의 <strong>공개 JSONL 출력 명령</strong>으로 교체하세요. ai-agent마다 실행 옵션이 다를 수 있어 여기서는 특정 CLI 옵션을 가정하지 않습니다.</p>
-        <div class="command" data-platform="windows"><div class="command-head">명령 형식 · 꺾쇠 부분은 실제 값으로 교체</div><pre><code>.\.venv\Scripts\agent-console.exe run -- &lt;실행파일&gt; &lt;인자들&gt;</code></pre></div>
-        <div class="command" data-platform="unix"><div class="command-head">명령 형식 · 꺾쇠 부분은 실제 값으로 교체</div><pre><code>.venv/bin/agent-console run -- &lt;실행파일&gt; &lt;인자들&gt;</code></pre></div>
-        <ul>
-          <li>producer는 <strong>schema_version 1의 JSON 한 개를 한 줄에</strong> 출력해야 합니다.</li>
-          <li>stdout에는 JSONL만, 일반 진단은 stderr로 보내세요. 각 이벤트를 즉시 flush해야 실시간으로 보입니다.</li>
-          <li>외부 명령은 현재 작업 폴더와 환경변수를 상속합니다. 다른 프로젝트의 실행 파일·스크립트는 필요한 경우 절대 경로로 지정하세요. 스크립트 경로만 바꿔도 작업 폴더가 자동으로 바뀌지는 않습니다.</li>
-          <li>외부 명령의 stdin은 닫혀 있으므로 실행 중 질문에 답해야 하는 대화형 명령은 사용할 수 없습니다.</li>
-        </ul>
-        <p class="note warm">실행 중 <kbd>q</kbd> 또는 <kbd>Ctrl</kbd> + <kbd>C</kbd>로 닫으면 직접 실행한 subprocess도 종료합니다. 그 프로세스가 추가로 만든 하위 프로세스 전체를 관리하지는 않습니다.</p>
-        <details><summary>파일 대신 pipe로 입력받고 싶다면</summary>
-          <p><code>replay -</code>는 표준 입력을 읽습니다. 이 모드는 항상 plain 보고서를 사용하며 입력이 끝난 뒤 결과를 출력합니다.</p>
-          <div class="command" data-platform="windows"><div class="command-head">PowerShell · stdin 샘플</div><pre><code>Get-Content tests/fixtures/successful_developer_run.jsonl | .\.venv\Scripts\agent-console.exe replay -</code></pre></div>
-          <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · stdin 샘플</div><pre><code>.venv/bin/agent-console replay - &lt; tests/fixtures/successful_developer_run.jsonl</code></pre></div>
-        </details>
-        <p class="small">Agent Console은 credential을 관리하거나 이벤트 로그를 자동 저장하지 않습니다. message·metadata·stderr 원문은 표시하지 않으며 ID와 이벤트 종류는 표시됩니다. 실제 실행 로그를 저장소에 commit하지 마세요.</p>
+        <h2><span class="number">06</span>실제 작업 시작하기</h2>
+        <p>별도로 준비한 ai-agent와 기존 인증 환경이 필요합니다. <strong>Runtime Profile</strong>은 그 엔진의 Python 실행 파일, main.py 위치, 기본 모델을 기억하는 로컬 설정입니다. 비밀번호 보관함이 아닙니다.</p>
+        <p><a href="run-launcher.md#1-설치와-runtime-profile-등록">Runtime Profile 등록 명령과 상세 절차</a>를 따라 등록하세요. 여기서 경로는 자신의 별도 ai-agent 설치 위치로 바꿉니다. 작업 대상 프로젝트 폴더는 Launcher의 Workspace에 따로 입력합니다.</p>
+        <div class="command" data-platform="windows"><div class="command-head">PowerShell · local 프로필 등록 후</div><pre><code>.\.venv\Scripts\agent-console.exe launch --profile local</code></pre></div>
+        <div class="command" data-platform="unix"><div class="command-head">macOS / Linux · local 프로필 등록 후</div><pre><code>.venv/bin/agent-console launch --profile local</code></pre></div>
+        <p>Workspace 선택 → Check Workspace → 결과 확인 후 복귀 → Prompt 입력 → Allow execution ON → Start Run → 확인창 Start 순서로 진행합니다.</p>
+        <p class="note warm">Check 성공은 실행 승인이 아닙니다. 실제 파일 변경 권한은 ai-agent가 최종 판단합니다. 실행 중 Cancel Run 또는 q / Ctrl+C는 직접 시작한 프로세스만 종료합니다. 하위 프로세스 전체 종료를 보장하지 않으며 자동 실행 시간 제한은 없습니다.</p>
+        <details><summary>이미 공개 JSONL을 출력하는 명령이 있다면</summary><p><code>agent-console run -- &lt;실행파일&gt; &lt;인자들&gt;</code>로 직접 연결할 수 있습니다. stdout은 schema v1 JSONL, 일반 진단은 stderr로 보내고 각 줄을 즉시 flush해야 합니다. 외부 프로그램은 현재 작업 폴더와 환경을 상속하며 대화형 stdin은 지원하지 않습니다.</p><p><code>replay -</code>는 stdin의 이벤트를 받아 입력 종료 후 plain 보고서를 출력합니다. <a href="../README.md">README의 사용 예</a>를 참고하세요.</p></details>
+        <p class="small">Console은 prompt history나 수신 이벤트를 기본 저장하지 않습니다. 실행 시작 후 입력과 undo 기록을 비우지만, 실행 중 OS 프로세스 조회에는 prompt 인자가 보일 수 있습니다. 별도 ai-agent의 로그 정책은 Console과 별개입니다.</p>
       </section>
       <section id="troubleshoot">
         <h2>막혔을 때 확인할 것</h2>
@@ -216,6 +265,20 @@
         <details><summary>Incomplete 또는 sequence gaps가 보여요</summary><p>실행 종료 이벤트가 없거나 중간 이벤트가 누락됐습니다. producer의 종료 상태와 event log가 완전한지 확인하세요. Agent Console은 입력이 끝났다는 이유만으로 실행을 성공으로 처리하지 않습니다.</p></details>
         <details><summary>stderr가 있는데 내용은 보이지 않아요</summary><p>민감 정보 노출을 줄이기 위해 수신 byte 수만 표시합니다. producer가 제공하는 별도의 안전한 진단 방법으로 원인을 확인하세요. 전체 run이 Completed여도 subprocess 종료 코드가 0이 아니면 CLI는 실패를 반환합니다.</p></details>
         <details><summary>터미널이 작거나 이벤트가 너무 많아요</summary><p>창을 키우거나 <code>--plain</code>으로 실행하세요. TUI에는 최근 1,000개, plain에는 최근 200개 이벤트가 표시됩니다. 보관 한도는 session당 20개 run, run당 10,000개 이벤트이며 한도를 넘으면 명시적인 입력 오류로 보고합니다.</p></details>
+      </section>
+      <section id="technical">
+        <h2>개발자를 위한 기술 구조</h2>
+        <p>사용자 흐름을 이해했다면 아래에서 내부 경계를 확인할 수 있습니다. Python 3.11+와 Textual을 사용하며 core는 TUI에 의존하지 않습니다.</p>
+        <pre aria-label="실행과 관찰 처리 구조">RuntimeProfile + LaunchRequest
+  → CommandBuilder: shell 없는 argv
+  → 별도 ai-agent subprocess
+  → stdout JSONL (또는 파일 / stdin replay)
+  → Parser → Event → Reducer → RunState
+  → Textual TUI / plain report</pre>
+        <ul><li><strong>Profile / Request:</strong> 실행 환경과 이번 요청을 검증합니다.</li><li><strong>subprocess:</strong> stdout과 stderr를 동시에 읽습니다. stderr는 원문 대신 byte 수만 집계합니다.</li><li><strong>Parser / Event:</strong> schema v1을 검증하고 허용된 정보만 남깁니다.</li><li><strong>Reducer / RunState:</strong> 실행별 sequence 순서로 상태를 계산합니다. 늦게 온 이벤트를 재정렬하고 중복·충돌을 구분합니다.</li><li><strong>TUI:</strong> 계산된 상태를 표시합니다. UI가 upstream 완료 이벤트를 만들어내지 않습니다.</li></ul>
+        <p>한 줄 64 KiB, 세션 20개 run, run당 10,000개 이벤트로 제한합니다. Timeline은 최근 1,000개를 표시합니다. 한도를 넘으면 진단하고 성공으로 처리하지 않습니다.</p>
+        <p>대량 입력의 중복 탐색은 선형이며 Timeline은 최근 행을 다시 구성합니다. 장시간·대량 부하의 성능 보증은 현재 범위가 아닙니다. 하위 프로세스가 pipe를 열어 두면 stream 종료가 지연될 수 있습니다.</p>
+        <p><a href="../README.md#event-protocol">이벤트 계약과 보안 설명</a> · <a href="run-launcher.md">Launcher CLI 계약</a></p>
       </section>
       <section id="development">
         <h2>개발용 설정 <span class="small">선택 사항</span></h2>
@@ -232,7 +295,8 @@ git diff --check</code></pre></div>
 git diff --check</code></pre></div>
         <p class="small">이 안내서는 저장소에 포함된 독립 HTML 파일입니다. 별도 서버나 외부 리소스 없이 브라우저에서 열 수 있습니다.</p>
       </section>
-      <footer>Agent Console v0.2.0 · 설치와 사용 안내 <a href="#prepare">처음으로 돌아가기 ↑</a></footer>
+      <section id="future"><h2>다음 단계</h2><p>현재 TUI 시각 디자인 수정은 마무리합니다. 먼저 실제 사용에서 반복되는 문제를 모으고, 장시간 입력 성능과 취소·정리 동작의 검증 범위를 넓히는 것을 검토합니다.</p><p>그 다음 Filter / Search / Run History 등 필요한 기능의 우선순위를 정할 수 있습니다. 모두 계획 단계이며 이번에 추가하지 않았습니다.</p><p>향후 핵심 기능 안정화 이후 <strong>전문 UI/UX 디자이너와 협업</strong>하여 인터페이스와 사용 경험을 고도화할 계획입니다. 아직 협업 중이거나 전문 디자인 검증이 완료된 상태는 아닙니다.</p></section>
+      <footer>Agent Console v0.2.0 · 설치와 사용 안내 <a href="#top">처음으로 돌아가기 ↑</a></footer>
     </main>
   </div>
   <script>
