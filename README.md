@@ -56,6 +56,7 @@ Start Run 확인 → 진행 확인 → 결과와 실제 파일 확인** 순서�
 2026-10-09 사용자 피드백으로 기본 기능의 실제 사용 동작을 확인했습니다.
 전문적인 디자인 검증이나 모든 환경의 안정성을 보증하지는 않습니다.
 후속 변경은 [CHANGELOG의 0.2.1 Unreleased](CHANGELOG.md)에 기록하며 공식 릴리스는 별도입니다.
+UI/UX polish와 안정화의 main 반영·검토 이력은 [PR #1](https://github.com/Joeshinemmm/agent-console/pull/1)에서 확인할 수 있습니다.
 
 **Verified**는 아래 명시한 시나리오만 검증했다는 뜻입니다. **Partially Verified**는 구현됐으나 검증 범위가 제한적입니다.
 
