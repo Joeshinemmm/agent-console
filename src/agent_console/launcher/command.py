@@ -2,10 +2,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from agent_console.launcher.profile import (
+    DEFAULT_PROVIDER,
     VERIFY_MODES,
     LaunchError,
     RuntimeProfile,
     identifier,
+    provider,
     retries,
 )
 
@@ -15,7 +17,7 @@ class LaunchRequest:
     workspace: str = field(repr=False)
     prompt: str = field(default="", repr=False)
     task: str = "developer"
-    provider: str = "codex"
+    provider: str = DEFAULT_PROVIDER
     model: str = ""
     verify: str = "none"
     max_retries: int = 0
@@ -36,8 +38,11 @@ class LaunchRequest:
             raise LaunchError("Enter a prompt before starting a run.")
         if "\x00" in self.prompt or len(self.prompt) > 12000:
             raise LaunchError("Prompt must contain at most 12,000 characters and no NUL.")
-        if self.task != "developer" or self.provider != "codex":
-            raise LaunchError("This launcher supports the Developer task with Codex.")
+        if self.task != "developer":
+            raise LaunchError("This launcher supports the Developer task.")
+        provider(self.provider)
+        if not self.model:
+            raise LaunchError("Enter a model for the selected provider.")
         identifier(self.model, "model")
         if self.verify not in VERIFY_MODES:
             raise LaunchError("Verify must be none, pytest, or web.")
@@ -66,7 +71,7 @@ def build_command(
         request.task,
         "--provider",
         request.provider,
-        "--codex-model",
+        "--model",
         request.model,
         "--max-retries",
         str(request.max_retries),

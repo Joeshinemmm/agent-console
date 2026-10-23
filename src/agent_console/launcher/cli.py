@@ -1,7 +1,14 @@
 import json
 from pathlib import Path
 
-from agent_console.launcher.profile import RuntimeProfile, config_path, load_profiles, save_profiles
+from agent_console.launcher.profile import (
+    DEFAULT_PROVIDER,
+    PROVIDERS,
+    RuntimeProfile,
+    config_path,
+    load_profiles,
+    save_profiles,
+)
 
 
 def add_commands(commands) -> None:
@@ -23,7 +30,7 @@ def add_commands(commands) -> None:
     add.add_argument("--python", required=True, dest="python_executable")
     add.add_argument("--main", required=True, dest="ai_agent_main")
     add.add_argument("--model", required=True)
-    add.add_argument("--provider", choices=["codex"], default="codex")
+    add.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
     add.add_argument("--verify", choices=["none", "pytest", "web"], default="none")
     add.add_argument("--max-retries", type=int, choices=range(4), default=0)
 

@@ -146,3 +146,61 @@ async def test_launcher_validation_and_profile_switch(book, tmp_path):
         assert not app.query_one("#allow-execution", Switch).value
         assert app.query_one("#model", Input).value == "other-model"
         assert app.query_one("#verify", Select).value == "pytest"
+
+
+async def test_provider_follows_profile_and_never_carries_model(book, tmp_path):
+    book.profiles["claude"] = RuntimeProfile(
+        "claude", sys.executable, book.select().ai_agent_main, "synthetic-claude-model", "claude"
+    )
+    app = LauncherApp(book)
+    async with app.run_test(size=(100, 40)) as pilot:
+        provider = app.query_one("#provider", Select)
+        model = app.query_one("#model", Input)
+        await pilot.pause()
+        assert provider.value == "codex"
+        assert model.value == "synthetic-model"
+        assert "Ready" in str(app.query_one("#launch-status", Static).render())
+        app.query_one("#allow-execution", Switch).value = True
+        provider.value = "claude"
+        await pilot.pause()
+        assert model.value == ""
+        assert not app.query_one("#allow-execution", Switch).value
+        assert "Enter a model" in str(app.query_one("#model-help", Static).render())
+        fill(app, tmp_path)
+        await pilot.pause()
+        await pilot.click("#start-run")
+        assert isinstance(app.screen, LauncherScreen)
+        assert not app.controller.active
+        assert "Enter a model for the selected provider" in str(
+            app.query_one("#launch-status", Static).render()
+        )
+        provider.value = "codex"
+        await pilot.pause()
+        assert model.value == "synthetic-model"
+        app.query_one("#profile", Select).value = "claude"
+        await pilot.pause()
+        assert provider.value == "claude"
+        assert model.value == "synthetic-claude-model"
+        assert "Override" in str(app.query_one("#model-help", Static).render())
+
+
+async def test_per_run_provider_reaches_confirmation_and_monitor(book, tmp_path):
+    from test_viewport_acceptance import visible_text
+
+    app = LauncherApp(book)
+    async with app.run_test(size=(120, 50)) as pilot:
+        app.query_one("#provider", Select).value = "claude"
+        await pilot.pause()
+        app.query_one("#model", Input).value = "synthetic-claude-model"
+        fill(app, tmp_path)
+        await pilot.pause()
+        await pilot.click("#start-run")
+        assert isinstance(app.screen, ConfirmRun)
+        assert "Claude" in app.screen.description
+        assert "synthetic-claude-model" in app.screen.description
+        await pilot.click("#confirm-start")
+        await settle(app, pilot)
+        run = next(iter(app.controller.session.runs.values()))
+        assert run.provider == "claude"
+        assert "LLM (Claude)" in visible_text(app, app.screen.query_one("#component-scroll"))
+        assert "synthetic-thread-id" not in visible_text(app)
