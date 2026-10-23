@@ -57,7 +57,8 @@ main 반영과 별개로 0.2.1 공식 태그·릴리스는 아직 생성하지 �
 - synthetic fixture를 `llm.*` 이름으로 갱신하고 과거 형식 확인용 `legacy_codex_run.jsonl` 추가
 
 패키지 버전은 0.2.0을 유지하며 릴리스 번호는 릴리스 시점에 별도로 결정한다.
-합성 fixture와 가짜 runtime 테스트로 확인했으며, 새 명령으로 실제 Claude/Codex Launcher 실행은 아직 검증하지 않았다.
+2026-10-24 Launcher와 같은 argv를 `agent-console run --plain`으로 실행해 Claude·Codex 각각 Workspace Check와
+문서 한 개 생성을 확인했다([provider smoke 기록](docs/provider-smoke.md)). Launcher TUI 조작은 합성 테스트로만 확인했다.
 
 ## [0.2.0] - 2026-10-06
 

@@ -10,8 +10,9 @@ Workspace Check, 명시적 승인 후 Developer/Codex 문서 생성, Monitor 완
 **Provider 중립 변경 (Unreleased).** 이후 ai-agent의 LLM 이벤트가 `codex.*`에서 `llm.*`로,
 실행 옵션이 `--provider` / `--model`로 바뀌었다. 현재 Launcher는 provider로 Claude 또는 Codex를
 선택하며, 아래 등록 방법과 실행 계약은 새 방식 기준이다. 위 v0.2.0 Live 검증은 Codex와 이전
-`--codex-model` 명령으로 수행한 기록이다. 새 명령의 실제 Launcher 실행은 아직 검증하지 않았고,
-provider 선택과 표시는 synthetic fixture와 가짜 runtime 테스트로만 확인했다.
+`--codex-model` 명령으로 수행한 기록이다. 새 명령은 Launcher와 같은 argv를 `agent-console run --plain`으로
+실행해 Claude·Codex 각각 Workspace Check와 문서 한 개 생성을 확인했다([provider smoke 기록](provider-smoke.md)).
+Launcher TUI 조작 자체는 synthetic Textual 테스트로만 확인했다.
 
 ## 1. 설치와 Runtime Profile 등록
 

@@ -71,7 +71,7 @@ UI/UX polish와 안정화의 main 반영·검토 이력은 [PR #1](https://githu
 | Timeline / Component Status / Run Summary | Verified | 순서·중복·다중 run·실패 처리, headless 및 viewport 테스트 |
 | Runtime Profile / Workspace Check / Run Launcher | Verified | 합성 테스트와 사용자 실제 폴더 검사·실행 승인·복귀 |
 | 실제 Developer Launcher E2E | Verified | 단일 문서 생성과 종료·파일 확인(이전 Codex 전용 `--codex-model` 명령 기준); 아래 검증 기록 참고 |
-| Provider 중립 이벤트 / Claude·Codex provider 선택 | Implemented / Partially Verified | 합성 fixture와 가짜 runtime 테스트; 새 `--provider`/`--model` 명령의 실제 Launcher 실행은 미검증 |
+| Provider 중립 이벤트 / Claude·Codex provider 선택 | Verified | 합성 테스트와 Launcher와 같은 명령의 provider별 Workspace Check·문서 한 개 생성; TUI 조작은 합성 테스트만 ([provider smoke 기록](docs/provider-smoke.md)) |
 | UI/UX polish | Implemented / Partially Verified | 개선 구현·합성 화면 검사·사용자 기본 동작 확인; 전문 디자인 평가는 미실시 |
 | Filter / Search / Run History | Planned | 미구현 |
 | Web UI / Database / Remote Monitoring / 다른 Task Launcher | Not Supported | 현재 제공하지 않음 |
