@@ -16,7 +16,13 @@ LABELS = {
     "file.modified": "File modified",
     "file.deleted": "File deleted",
     "security.denied": "Security check denied",
+    "llm.session.started": "LLM session started",
+    "llm.session.resumed": "LLM session resumed",
+    "llm.turn.started": "LLM turn started",
+    "llm.turn.completed": "LLM turn completed",
+    "llm.turn.failed": "LLM turn failed",
 }
+NAMES = {"llm": "LLM"}
 STYLES = {
     Status.IDLE: "dim",
     Status.RUNNING: "cyan",
@@ -27,9 +33,20 @@ STYLES = {
 }
 
 
+def component_label(name: str) -> str:
+    return NAMES.get(name, name.capitalize())
+
+
+def provider_label(provider: str) -> str:
+    return provider.capitalize()
+
+
 def description(event: Event) -> str:
     # Do not render free-form message, metadata, filenames, prompts, or source text.
-    return LABELS.get(event.event_type, event.event_type.replace(".", " ").capitalize())
+    text = LABELS.get(event.event_type, event.event_type.replace(".", " ").capitalize())
+    if event.details.provider:
+        text += f" ({provider_label(event.details.provider)})"
+    return text
 
 
 def event_style(event: Event) -> str:

@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from agent_console.models.event import Event
 from agent_console.models.run import RunState, Status
 
-DEFAULT_COMPONENTS = ("main", "developer", "codex", "test", "browser", "desktop", "training")
+DEFAULT_COMPONENTS = ("main", "developer", "llm", "test", "browser", "desktop", "training")
+# Records from before the provider-neutral rename used Codex-only names. Count them as the
+# LLM component with provider codex; the events themselves keep their original names.
+LEGACY_COMPONENTS = {"codex": ("llm", "codex")}
 TERMINALS = {
     "run.completed": Status.COMPLETED,
     "run.failed": Status.FAILED,
@@ -68,11 +71,14 @@ def apply_event(state: RunState, event: Event, *, max_events: int = 10_000) -> R
     activity = None if late else state.activity
     elapsed_ms = 0 if late else state.elapsed_ms
     error_count = 0 if late else state.error_count
+    provider = None if late else state.provider
     for item in replay:
-        components.setdefault(item.component, Status.IDLE)
+        component, legacy_provider = LEGACY_COMPONENTS.get(item.component, (item.component, None))
+        components.setdefault(component, Status.IDLE)
         component_status = lifecycle(item)
         if component_status:
-            components[item.component] = component_status
+            components[component] = component_status
+        provider = item.details.provider or legacy_provider or provider
         if item.event_type in TERMINALS:
             status = TERMINALS[item.event_type]
         elif item.event_type == "run.started" and status not in TERMINALS.values():
@@ -92,6 +98,7 @@ def apply_event(state: RunState, event: Event, *, max_events: int = 10_000) -> R
             elapsed_ms=elapsed_ms,
             error_count=error_count,
             activity=activity,
+            provider=provider,
         ),
         "Out-of-order event inserted by sequence." if late else None,
     )

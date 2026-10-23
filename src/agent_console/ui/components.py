@@ -3,9 +3,16 @@ from rich.text import Text
 from textual.widgets import Static
 
 from agent_console.models.run import RunState, Status
-from agent_console.presentation import STYLES
+from agent_console.presentation import STYLES, component_label, provider_label
 
-AGENTS = ("developer", "codex", "test", "browser", "desktop", "training")
+AGENTS = ("developer", "llm", "test", "browser", "desktop", "training")
+
+
+def agent_label(name: str, run: RunState) -> str:
+    label = component_label(name)
+    if name == "llm" and run.provider:
+        label += f" ({provider_label(run.provider)})"
+    return label
 
 
 def system_text(run: RunState) -> Text:
@@ -15,7 +22,7 @@ def system_text(run: RunState) -> Text:
         if name not in AGENTS:
             if text.plain != "System: ":
                 text.append(" · ")
-            text.append(f"{name.capitalize()} {status}", style=STYLES[status])
+            text.append(f"{component_label(name)} {status}", style=STYLES[status])
     return text if text.plain != "System: " else Text()
 
 
@@ -28,7 +35,7 @@ class Components(Static):
         for name in AGENTS:
             status = states.get(name, Status.IDLE)
             table.add_row(
-                Text(name.capitalize(), style="dim" if status == Status.IDLE else "bold"),
+                Text(agent_label(name, run), style="dim" if status == Status.IDLE else "bold"),
                 Text(str(status), style=STYLES[status]),
             )
         self.update(table)

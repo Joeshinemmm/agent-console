@@ -92,6 +92,60 @@ def test_payloads_not_retained():
     assert not hasattr(event, "metadata")
 
 
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("claude", "claude"),
+        ("codex", "codex"),
+        ("Claude", None),
+        ("future-engine", None),
+        (1, None),
+        (None, None),
+        (["claude"], None),
+    ],
+)
+def test_llm_provider_projection_is_allowlisted(value, expected):
+    event = parse_line(
+        json.dumps(
+            payload(event_type="llm.turn.started", component="llm", metadata={"provider": value})
+        )
+    ).event
+    assert event.details.provider == expected
+
+
+def test_provider_is_read_only_from_llm_events():
+    event = parse_line(
+        json.dumps(
+            payload(
+                event_type="developer.started",
+                component="developer",
+                metadata={"provider": "claude"},
+            )
+        )
+    ).event
+    assert event.details.provider is None
+
+
+def test_llm_session_identifiers_not_retained():
+    event = parse_line(
+        json.dumps(
+            payload(
+                event_type="llm.session.started",
+                component="llm",
+                metadata={
+                    "provider": "claude",
+                    "thread_id": "synthetic-thread-id",
+                    "auth_type": "claude_login",
+                    "continuation": False,
+                },
+            )
+        )
+    ).event
+    assert event.details.provider == "claude"
+    assert "synthetic-thread-id" not in repr(event)
+    assert "claude_login" not in repr(event)
+
+
 def test_oversized_line():
     assert "64 KiB" in parse_line(b"x" * (MAX_LINE_BYTES + 1)).issue
 

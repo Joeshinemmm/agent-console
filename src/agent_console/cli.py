@@ -54,6 +54,8 @@ def plain_report(session: Session) -> None:
         if len(run.events) > 200:
             print("(Showing the latest 200 timeline events.)")
         print("Components: " + ", ".join(f"{name}={status}" for name, status in run.components))
+        if run.provider:
+            print(f"LLM provider: {run.provider}")
         print(
             f"Elapsed {run.elapsed_ms / 1000:.3f}s | Events {run.event_count} "
             f"| Errors {run.error_count}"

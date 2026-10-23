@@ -11,6 +11,7 @@ from test_launcher_ui import book as shared_book
 from test_ui_polish import MonitorProbe, monitor_ready
 from textual.widgets import Button, Input, Select, Switch, TextArea
 
+from agent_console.presentation import component_label
 from agent_console.sources import SourceItem
 from agent_console.ui.components import AGENTS
 from agent_console.ui.launcher import ConfirmRun, LauncherApp, LauncherScreen
@@ -97,12 +98,12 @@ def scenario(encode, state, long=False):
             ("git.status", "git"),
         ]
         if state != "check":
-            events += [("developer.started", "developer"), ("codex.turn.started", "codex")]
+            events += [("developer.started", "developer"), ("llm.turn.started", "llm")]
         if long:
             events += [("tool.completed", "developer")] * 100
         if state not in ("running", "check"):
             events += [
-                ("codex.turn.completed", "codex"),
+                ("llm.turn.completed", "llm"),
                 ("file.created", "developer"),
                 ("developer.completed", "developer"),
                 ("cleanup.completed", "cleanup"),
@@ -121,7 +122,13 @@ def scenario(encode, state, long=False):
                         if event in ("route.selected", "workspace.validated", "git.status")
                         else event.rsplit(".", 1)[-1]
                     ),
-                    metadata={"path": "docs/example.md"} if event == "file.created" else {},
+                    metadata=(
+                        {"path": "docs/example.md"}
+                        if event == "file.created"
+                        else {"provider": "claude"}
+                        if component == "llm"
+                        else {}
+                    ),
                 ),
             )
         if state == "running":
@@ -153,7 +160,9 @@ async def test_monitor_visible_agents_result_and_actions(encode_event, size, sta
         assert_inside(result, body)
         assert_inside(app.query_one("#summary"), body)
         for name in AGENTS:
-            assert name.capitalize() in visible_text(app, agents)
+            assert component_label(name) in visible_text(app, agents)
+        if state != "check":
+            assert "LLM (Claude)" in visible_text(app, agents)
         assert "Main" not in visible_text(app, agents)
         assert "Main" in visible_text(app, app.query_one("#system-status"))
         assert "main" in dict(next(iter(app.session.runs.values())).components)
@@ -161,7 +170,7 @@ async def test_monitor_visible_agents_result_and_actions(encode_event, size, sta
         assert "Events" in summary_text and "Issues" in summary_text
         assert "Process exit" not in summary_text and "docs/example.md" not in summary_text
         if state == "running":
-            assert "Codex turn started" in visible_text(app, result)
+            assert "LLM turn started (Claude)" in visible_text(app, result)
             assert "Cancel Run" in visible_text(app)
         else:
             headline = "Run completed" if state == "check" else "Run " + state

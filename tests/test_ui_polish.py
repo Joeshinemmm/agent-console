@@ -349,7 +349,7 @@ def test_components_keep_idle_visible_after_active(make_event):
     table = widget.render()._renderable
     assert [text.plain for text in table.columns[0]._cells] == [
         "Developer",
-        "Codex",
+        "LLM",
         "Test",
         "Browser",
         "Desktop",

@@ -17,6 +17,7 @@ from agent_console.state.session import Session, consume
     [
         ("successful_developer_run.jsonl", Status.COMPLETED, 12, 0),
         ("failed_run.jsonl", Status.FAILED, 8, 2),
+        ("legacy_codex_run.jsonl", Status.COMPLETED, 12, 0),
     ],
 )
 async def test_file_replay(filename, status, count, errors):
