@@ -8,6 +8,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 VERIFY_MODES = ("none", "pytest", "web")
+# ai-agent --provider values. Model names are never defaulted: they depend on the account.
+PROVIDERS = ("claude", "codex")
+DEFAULT_PROVIDER = "codex"
 
 
 class LaunchError(ValueError):
@@ -17,6 +20,12 @@ class LaunchError(ValueError):
 def identifier(value: object, label: str) -> str:
     if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", value):
         raise LaunchError(f"Invalid {label}; use a bounded identifier.")
+    return value
+
+
+def provider(value: object) -> str:
+    if not isinstance(value, str) or value not in PROVIDERS:
+        raise LaunchError("Provider must be claude or codex.")
     return value
 
 
@@ -32,15 +41,14 @@ class RuntimeProfile:
     python_executable: str = field(repr=False)
     ai_agent_main: str = field(repr=False)
     model: str
-    provider: str = "codex"
+    provider: str = DEFAULT_PROVIDER
     default_verify: str = "none"
     default_max_retries: int = 0
 
     def validate(self) -> None:
         identifier(self.name, "profile name")
         identifier(self.model, "model")
-        if self.provider != "codex":
-            raise LaunchError("The external Developer launcher currently supports Codex only.")
+        provider(self.provider)
         if self.default_verify not in VERIFY_MODES:
             raise LaunchError("Verify must be none, pytest, or web.")
         retries(self.default_max_retries)

@@ -10,8 +10,9 @@ parser.add_argument("--workspace", required=True)
 parser.add_argument("--check-workspace", action="store_true")
 parser.add_argument("--output", choices=["jsonl"], required=True)
 parser.add_argument("--task", choices=["developer"])
-parser.add_argument("--provider", choices=["codex"])
-parser.add_argument("--codex-model")
+# Only the provider-neutral options: the launcher must not fall back to --codex-model.
+parser.add_argument("--provider", choices=["claude", "codex"])
+parser.add_argument("--model")
 parser.add_argument("--verify", choices=["none", "pytest", "web"])
 parser.add_argument("--max-retries", type=int, choices=range(4))
 parser.add_argument("--allow-execution", action="store_true")
@@ -55,6 +56,9 @@ if not args.check_workspace:
     emit("developer.started", "developer")
     if args.prompt == "synthetic-wait":
         time.sleep(30)
+    session = {"thread_id": "synthetic-thread-id", "auth_type": "synthetic", "continuation": False}
+    emit("llm.session.started", "llm", {"provider": args.provider, **session})
+    emit("llm.turn.completed", "llm", {"provider": args.provider})
     if args.allow_execution:
         target = Path(args.workspace) / "docs" / "example.md"
         target.parent.mkdir(exist_ok=True)

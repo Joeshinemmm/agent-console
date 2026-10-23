@@ -74,9 +74,50 @@ def test_terminal_authority(make_event, terminal, status):
 
 
 def test_component_failure_is_not_run_failure(make_event):
-    state = reduce([make_event(), make_event(2, "codex.turn.failed", "codex")])
+    state = reduce(
+        [make_event(), make_event(2, "llm.turn.failed", "llm", metadata={"provider": "claude"})]
+    )
     assert state.status == Status.RUNNING
     assert state.display_status(True) == Status.INCOMPLETE
+    assert dict(state.components)["llm"] == Status.FAILED
+
+
+def test_llm_provider_follows_sequence_order(make_event):
+    events = [
+        make_event(),
+        make_event(2, "llm.session.started", "llm", metadata={"provider": "codex"}),
+        make_event(3, "llm.turn.completed", "llm", metadata={"provider": "claude"}),
+        make_event(4, "developer.completed", "developer", metadata={"provider": "codex"}),
+    ]
+    expected = reduce(events)
+    for arrival in permutations(events):
+        assert reduce(arrival) == expected
+    assert expected.provider == "claude"
+    assert dict(expected.components)["llm"] == Status.COMPLETED
+
+
+def test_provider_unknown_without_llm_events(make_event):
+    state = reduce([make_event(), make_event(2, "developer.started", "developer")])
+    assert state.provider is None
+    assert dict(state.components)["llm"] == Status.IDLE
+
+
+def test_legacy_codex_events_count_as_llm(make_event):
+    events = [
+        make_event(),
+        make_event(2, "codex.thread.started", "codex"),
+        make_event(3, "codex.turn.completed", "codex"),
+    ]
+    state = reduce(events)
+    components = dict(state.components)
+    assert components["llm"] == Status.COMPLETED
+    assert "codex" not in components
+    assert state.provider == "codex"
+    # The stored events keep their original legacy names.
+    assert [event.component for event in state.events] == ["main", "codex", "codex"]
+    assert state.events[2].event_type == "codex.turn.completed"
+    for arrival in permutations(events):
+        assert reduce(arrival) == state
 
 
 def test_unknown_event_remains_visible(make_event):

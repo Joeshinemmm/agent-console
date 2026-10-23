@@ -8,7 +8,13 @@ from textual.widgets import Button, Footer, Input, Label, Select, Static, Switch
 
 from agent_console.launcher.command import LaunchRequest, preflight
 from agent_console.launcher.controller import LaunchController, workspace_result
-from agent_console.launcher.profile import LaunchError, ProfileBook, RuntimeProfile
+from agent_console.launcher.profile import (
+    DEFAULT_PROVIDER,
+    PROVIDERS,
+    LaunchError,
+    ProfileBook,
+    RuntimeProfile,
+)
 from agent_console.ui.controls import ActionButton, ConsoleHeader
 from agent_console.ui.monitor import MonitorScreen
 
@@ -144,6 +150,9 @@ class LauncherScreen(Screen):
         self.pending: tuple[RuntimeProfile, LaunchRequest] | None = None
         self.check_key: tuple[str, str] | None = None
         self.prompt_height: int | None = None
+        # Last provider applied to the model field; Select also reports its initial value.
+        selected = book.profiles.get(self.selected or "")
+        self.provider = selected.provider if selected else DEFAULT_PROVIDER
 
     def compose(self) -> ComposeResult:
         yield ConsoleHeader()
@@ -188,7 +197,10 @@ class LauncherScreen(Screen):
                 with Vertical():
                     yield Label("Provider")
                     yield Select(
-                        [("Codex", "codex")], value="codex", allow_blank=False, id="provider"
+                        [(name.capitalize(), name) for name in PROVIDERS],
+                        value=self.provider,
+                        allow_blank=False,
+                        id="provider",
                     )
                 with Vertical():
                     yield Label("Model")
@@ -197,7 +209,7 @@ class LauncherScreen(Screen):
                         placeholder="Model from runtime profile",
                         tooltip="Override for this run only",
                     )
-                    yield Static("Override for this run only", classes="help")
+                    yield Static("Override for this run only", classes="help", id="model-help")
                 with Vertical():
                     yield Label("Verify")
                     yield Select(
@@ -300,19 +312,54 @@ class LauncherScreen(Screen):
         widget.update(state)
         widget.set_classes(state.lower())
 
-    def use_profile(self) -> None:
+    def selected_profile(self) -> RuntimeProfile | None:
         name = self.query_one("#profile", Select).value
-        if isinstance(name, str) and name in self.book.profiles:
-            profile = self.book.profiles[name]
-            self.query_one("#model", Input).value = profile.model
+        return self.book.profiles.get(name) if isinstance(name, str) else None
+
+    def use_profile(self) -> None:
+        profile = self.selected_profile()
+        if profile:
+            self.provider = profile.provider
+            self.query_one("#provider", Select).value = profile.provider
             self.query_one("#verify", Select).value = profile.default_verify
             self.query_one("#retries", Input).value = str(profile.default_max_retries)
+            self.show_model(profile.model, from_profile=True)
         self.query_one("#allow-execution", Switch).value = False
+
+    def use_provider(self) -> None:
+        """A model name belongs to one provider; never carry it to another provider."""
+        value = self.query_one("#provider", Select).value
+        if value == self.provider:
+            return
+        self.provider = str(value)
+        profile = self.selected_profile()
+        if profile and profile.provider == self.provider:
+            self.show_model(profile.model, from_profile=True)
+            self.show_status("Provider matches the runtime profile; its model is restored.")
+        else:
+            self.show_model("", from_profile=False)
+            self.show_status(
+                f"{self.provider.capitalize()} is not this profile's provider. "
+                "Enter a model for this run."
+            )
+        self.query_one("#allow-execution", Switch).value = False
+
+    def show_model(self, value: str, *, from_profile: bool) -> None:
+        model = self.query_one("#model", Input)
+        model.value = value
+        model.placeholder = (
+            "Model from runtime profile" if from_profile else "Model for this provider"
+        )
+        self.query_one("#model-help", Static).update(
+            "Override for this run only" if from_profile else "Enter a model for this provider"
+        )
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id == "profile":
             self.use_profile()
             self.invalidate_check()
+        elif event.select.id == "provider":
+            self.use_provider()
         elif event.select.id == "verify":
             help_text = {
                 "none": "No host verification",

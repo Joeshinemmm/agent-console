@@ -17,7 +17,8 @@ Agent Console은 공개된 실행 기록을 시간순으로 정리하고 작업�
 | **Agent Console (`agent-console`, 이 저장소)** | 실행 엔진에 요청을 전달하고 공개 진행 기록을 표시 | 실행 환경 등록, 폴더 검사, 작업 시작, Timeline, 상태·결과 표시 |
 
 두 프로젝트는 **별도 저장소**입니다. Agent Console은 ai-agent 내부 모듈을 가져오거나 모델을 직접 호출하지 않습니다.
-현재 Launcher에서 시작할 수 있는 작업은 **로컬 Developer / Codex**입니다. Browser·Desktop·Training 상태를
+현재 Launcher에서 시작할 수 있는 작업은 **로컬 Developer**이며, 코드 생성 엔진(provider)으로 **Claude** 또는
+**Codex**를 고릅니다. Browser·Desktop·Training 상태를
 표시할 수 있다는 사실이 이 작업들을 Launcher에서 시작할 수 있다는 뜻은 아닙니다.
 
 ```text
@@ -27,14 +28,15 @@ Agent Console: 별도 ai-agent 실행
     ↓
 AI Agent Platform: Main이 Developer로 작업 분배
     ↓
-Developer → Codex → 선택한 프로젝트의 파일 작업
+Developer → LLM provider(Claude 또는 Codex) → 선택한 프로젝트의 파일 작업
     ↓
 ai-agent가 공개 진행 이벤트를 출력
     ↓
 Agent Console: 진행 단계 · 오류 · 종료 결과 확인
 ```
 
-Main은 흐름을 관리하는 Python 규칙 기반 구성요소입니다. Developer는 Codex를 사용하는 AI 개발 기능이고,
+Main은 흐름을 관리하는 Python 규칙 기반 구성요소입니다. Developer는 선택한 LLM provider(Claude 또는 Codex)를
+사용하는 AI 개발 기능이고,
 Browser는 Playwright 웹 자동화, Desktop은 Windows UI Automation, Training은 학습 파이프라인입니다.
 모든 구성요소가 각각 독립적인 언어 모델을 호출하는 것은 아닙니다.
 
@@ -56,6 +58,7 @@ Start Run 확인 → 진행 확인 → 결과와 실제 파일 확인** 순서�
 2026-10-09 사용자 피드백으로 기본 기능의 실제 사용 동작을 확인했습니다.
 전문적인 디자인 검증이나 모든 환경의 안정성을 보증하지는 않습니다.
 후속 변경은 [CHANGELOG의 0.2.1 Unreleased](CHANGELOG.md)에 기록하며 공식 릴리스는 별도입니다.
+provider 중립 이벤트(`llm.*`)와 Claude/Codex provider 선택도 0.2.0 이후의 미릴리스 변경입니다.
 UI/UX polish와 안정화의 main 반영·검토 이력은 [PR #1](https://github.com/Joeshinemmm/agent-console/pull/1)에서 확인할 수 있습니다.
 
 **Verified**는 아래 명시한 시나리오만 검증했다는 뜻입니다. **Partially Verified**는 구현됐으나 검증 범위가 제한적입니다.
@@ -67,7 +70,8 @@ UI/UX polish와 안정화의 main 반영·검토 이력은 [PR #1](https://githu
 | JSONL Replay / Live Subprocess Monitoring | Verified | synthetic 파일·stdin·실제 child pipe 테스트, 사용자 live 연동 |
 | Timeline / Component Status / Run Summary | Verified | 순서·중복·다중 run·실패 처리, headless 및 viewport 테스트 |
 | Runtime Profile / Workspace Check / Run Launcher | Verified | 합성 테스트와 사용자 실제 폴더 검사·실행 승인·복귀 |
-| 실제 Developer Launcher E2E | Verified | 단일 문서 생성과 종료·파일 확인; 아래 검증 기록 참고 |
+| 실제 Developer Launcher E2E | Verified | 단일 문서 생성과 종료·파일 확인(이전 Codex 전용 `--codex-model` 명령 기준); 아래 검증 기록 참고 |
+| Provider 중립 이벤트 / Claude·Codex provider 선택 | Verified | 합성 테스트와 Launcher와 같은 명령의 provider별 Workspace Check·문서 한 개 생성; TUI 조작은 합성 테스트만 ([provider smoke 기록](docs/provider-smoke.md)) |
 | UI/UX polish | Implemented / Partially Verified | 개선 구현·합성 화면 검사·사용자 기본 동작 확인; 전문 디자인 평가는 미실시 |
 | Filter / Search / Run History | Planned | 미구현 |
 | Web UI / Database / Remote Monitoring / 다른 Task Launcher | Not Supported | 현재 제공하지 않음 |
@@ -86,6 +90,7 @@ UI/UX polish와 안정화의 main 반영·검토 이력은 [PR #1](https://githu
 | Training Agent | Partially Verified | 작은 LoRA smoke, checkpoint 저장·resume·reload; 특화 모델 성능 검증 아님 |
 | External Workspace / JSONL Event Stream | Verified | 외부 폴더 검사·schema v1 출력·외부 README 한 개 생성 |
 | 실제 외부 Developer E2E | Verified | 플랫폼의 외부 README 생성 기록과 Console의 문서 생성 검증 |
+| Provider 중립 이벤트 / Claude·Codex provider | Verified (ai-agent 기록) | 2026-10-22 플랫폼 문서의 외부 workspace provider별 단일 문서 생성 기록; Console에서 재실행하지 않음 |
 
 Console의 검증 근거: [직접 Monitor Live E2E](docs/live-ai-agent-smoke.md),
 [Launcher Live E2E](docs/v0.2-launcher-smoke.md).
@@ -117,16 +122,18 @@ python3 -m venv .venv
 Launcher의 기본 사용 순서는 다음과 같습니다. 실제 등록 명령은
 [Runtime Profile 등록 안내](docs/run-launcher.md#1-설치와-runtime-profile-등록)를 참고하세요.
 
-1. 로컬 Runtime Profile을 등록합니다.
+1. 로컬 Runtime Profile을 등록합니다. provider(`claude` 또는 `codex`)와 그 provider의 모델을 함께 저장합니다.
 2. `agent-console launch --profile <name>`을 실행합니다.
 3. 작업할 Workspace의 절대 경로를 입력합니다.
 4. **Check Workspace** 결과를 확인하고 Launcher로 돌아옵니다.
-5. Prompt를 입력합니다.
-6. 파일 쓰기·도구 실행이 필요하면 **Allow execution**을 직접 ON으로 바꿉니다.
-7. **Start Run**을 누릅니다.
-8. 확인 창에서 설정을 검토하고 **Start**를 누릅니다.
-9. 기존 Monitor에서 진행과 종료 결과를 관찰합니다.
-10. 완료 후 **Back to Launcher**로 돌아옵니다.
+5. Provider와 Model을 확인합니다. 처음에는 profile 값이며, 이번 실행만 다른 provider를 고르면
+   Model 칸이 비워지므로 그 provider의 모델을 직접 입력합니다.
+6. Prompt를 입력합니다.
+7. 파일 쓰기·도구 실행이 필요하면 **Allow execution**을 직접 ON으로 바꿉니다.
+8. **Start Run**을 누릅니다.
+9. 확인 창에서 설정을 검토하고 **Start**를 누릅니다.
+10. 기존 Monitor에서 진행과 종료 결과를 관찰합니다.
+11. 완료 후 **Back to Launcher**로 돌아옵니다.
 
 Launcher는 110열 이상이면 높이가 낮아도 Run settings를 2열로 유지한다.
 36행 미만에서는 Runtime과 설정을 compact하게 표시하고 일부 도움말은 tooltip으로 제공한다.
@@ -146,6 +153,7 @@ Enter는 focus된 버튼을 실행하고 Esc는 확인창을 취소한다.
 ```sh
 agent-console replay tests/fixtures/successful_developer_run.jsonl
 agent-console replay tests/fixtures/failed_run.jsonl
+agent-console replay tests/fixtures/legacy_codex_run.jsonl
 agent-console replay tests/fixtures/successful_developer_run.jsonl --delay 0.2
 agent-console replay tests/fixtures/successful_developer_run.jsonl --plain
 agent-console replay - < events.jsonl
@@ -219,7 +227,9 @@ UTF-8 newline-delimited JSON, 한 줄에 한 event이며 `schema_version = 1`만
 | `message`, `metadata` | 타입 검증 후 원문 폐기. 아래 allowlist만 typed details로 보관 |
 
 `workspace.validated.metadata.external`, `git.status.metadata.git_repository/dirty`는 실제 boolean만,
-`file.created/modified/deleted.metadata.path`는 제한된 안전한 상대 경로만 보관합니다.
+`file.created/modified/deleted.metadata.path`는 제한된 안전한 상대 경로만,
+`llm.*`의 `metadata.provider`는 `claude` 또는 `codex`일 때만 보관합니다.
+`llm.session.*`의 `thread_id`, `auth_type`, `continuation`은 보관하거나 표시하지 않습니다.
 브랜치, read/write/commit/push 권한은 현재 계약에 없으므로 추정하지 않습니다.
 
 위 필드는 모두 필요하며 `duration_ms`의 값은 `null`일 수 있습니다. producer는 public event
@@ -227,6 +237,12 @@ UTF-8 newline-delimited JSON, 한 줄에 한 event이며 `schema_version = 1`만
 [synthetic fixture](tests/fixtures/successful_developer_run.jsonl), 정확한 검증 규칙은
 [Event model](src/agent_console/models/event.py)을 참고하세요.
 
+- LLM 단계는 `llm` component의 `llm.session.started/resumed`, `llm.turn.started/completed/failed`로
+  받고, Agents 패널과 Timeline에 `LLM (Claude)`처럼 provider를 함께 표시합니다. 2026-10-22 이전
+  ai-agent의 `codex` component와 `codex.thread.*` / `codex.turn.*` 기록도 읽습니다. 이런 과거 기록은
+  Timeline에 원래 이름 그대로 표시하고 Agents 패널에서는 `LLM (Codex)`로 집계합니다
+  ([과거 형식 synthetic fixture](tests/fixtures/legacy_codex_run.jsonl)). 미배포 기간의 `claude.*`
+  이름은 별도로 지원하지 않으며 알 수 없는 component로 표시합니다.
 - sequence는 run별 1부터 시작하는 양의 64-bit 정수입니다. 늦게 도착한 이벤트는 sequence로
   정렬하여 상태를 계산합니다. 중복은 무시하고 충돌은 첫 값을 유지하며, 종료 시 누락을 진단합니다.
   message/폐기된 metadata만 다른 중복은 구별하지 않습니다. allowlist details의 차이는 충돌로 감지합니다.
@@ -284,8 +300,10 @@ pytest 임시 파일은 저장소 내 `.pytest_tmp/`에 생성합니다.
 - component별 마지막 lifecycle을 표시하며 nested task별 상태 집계는 하지 않습니다.
 - 메시지 원문·임의 metadata·절대 파일 경로·thread ID·stderr 원문은 표시하지 않습니다.
   파일 변경 요약은 보관된 이벤트 중 최근 3개이며 ASCII 상대 경로만 표시합니다.
-- Launcher는 로컬 Developer/Codex 하나만 동시에 실행합니다. Profile의 모델 지원 여부는
-  runtime이 판단하며 모델 목록을 직접 조회하지 않습니다.
+- Launcher는 로컬 Developer 작업 하나만 동시에 실행하며 provider는 Claude 또는 Codex입니다.
+  모델 지원 여부는 runtime과 계정 플랜이 판단합니다. Agent Console은 모델 목록을 조회하지 않고
+  모델 이름의 기본값이나 자동 fallback을 두지 않습니다. 실행 명령은 `--provider`/`--model`을 쓰므로
+  이 옵션을 지원하는 ai-agent(2026-10-22 provider 중립 변경 이후)가 필요합니다.
 - 직접 실행한 subprocess만 종료하며 descendant process tree 전체를 관리하지 않습니다.
   terminal event가 와도 producer가 종료되지 않으면 계속 구독합니다. 자동 실행 시간 제한은 없습니다.
   하위 프로세스가 pipe를 열어 두면 EOF도 지연될 수 있습니다. Cancel은 직접 child를 대상으로 합니다.

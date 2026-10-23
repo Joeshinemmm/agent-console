@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -146,8 +147,11 @@ def test_profile_cli_lifecycle(tmp_path, runtime, capsys):
 
 @pytest.mark.parametrize("verify", ["none", "pytest", "web"])
 @pytest.mark.parametrize("allow", [False, True])
-def test_command_exact_argv(runtime, request_data, verify, allow):
-    request = replace(request_data, verify=verify, allow_execution=allow, max_retries=3)
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+def test_command_exact_argv(runtime, request_data, verify, allow, provider):
+    request = replace(
+        request_data, verify=verify, allow_execution=allow, max_retries=3, provider=provider
+    )
     argv = build_command(runtime, request)
     assert argv == [
         sys.executable,
@@ -158,8 +162,8 @@ def test_command_exact_argv(runtime, request_data, verify, allow):
         "--task",
         "developer",
         "--provider",
-        "codex",
-        "--codex-model",
+        provider,
+        "--model",
         "override-model",
         "--max-retries",
         "3",
@@ -168,6 +172,7 @@ def test_command_exact_argv(runtime, request_data, verify, allow):
         "--output",
         "jsonl",
     ] + (["--allow-execution"] if allow else []) + ["--", request.prompt]
+    assert "--codex-model" not in argv
     assert request.prompt not in repr(request)
 
 
@@ -197,6 +202,9 @@ def test_check_omits_all_execution_options(runtime, request_data):
         {"max_retries": 4},
         {"max_retries": True},
         {"provider": "unknown"},
+        {"provider": "Claude"},
+        {"provider": ""},
+        {"model": ""},
         {"task": "desktop"},
         {"model": "--bad"},
         {"allow_execution": 1},
@@ -207,14 +215,78 @@ def test_invalid_request(runtime, request_data, changes):
         preflight(runtime, replace(request_data, **changes))
 
 
+def test_empty_model_asks_for_selected_provider_model(runtime, request_data):
+    with pytest.raises(LaunchError, match="Enter a model for the selected provider"):
+        preflight(runtime, replace(request_data, provider="claude", model=""))
+
+
+def test_profile_provider_roundtrip_and_validation(tmp_path, runtime):
+    path = tmp_path / "agent-console.local.toml"
+    claude = replace(runtime, name="synthetic.claude", provider="claude")
+    book = ProfileBook({runtime.name: runtime, claude.name: claude}, claude.name)
+    save_profiles(path, book)
+    assert load_profiles(path) == book
+    assert load_profiles(path).select().provider == "claude"
+    with pytest.raises(LaunchError, match="claude or codex"):
+        replace(runtime, provider="unknown").validate()
+
+
+def write_config(path, runtime, provider):
+    lines = [
+        "config_version = 1",
+        "[profiles.local]",
+        f"python_executable = {json.dumps(runtime.python_executable)}",
+        f"ai_agent_main = {json.dumps(runtime.ai_agent_main)}",
+        'model = "synthetic-model"',
+    ]
+    if provider is not None:
+        lines.append(f"provider = {provider}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize("provider", ['"claude"', '"codex"', None])
+def test_config_provider_values(tmp_path, runtime, provider):
+    path = tmp_path / "agent-console.local.toml"
+    write_config(path, runtime, provider)
+    # A profile without a provider keeps the documented ai-agent default.
+    assert load_profiles(path).profiles["local"].provider == (
+        json.loads(provider) if provider else "codex"
+    )
+
+
+@pytest.mark.parametrize("provider", ['"unknown"', '"Codex"', "1"])
+def test_config_rejects_unknown_provider(tmp_path, runtime, provider):
+    path = tmp_path / "agent-console.local.toml"
+    write_config(path, runtime, provider)
+    with pytest.raises(LaunchError, match="Invalid runtime config"):
+        load_profiles(path)
+
+
+def test_profile_cli_accepts_provider(tmp_path, runtime, capsys):
+    base = ["profile", "--config", str(tmp_path / "agent-console.local.toml")]
+    arguments = ["--python", runtime.python_executable, "--main", runtime.ai_agent_main]
+    assert main(base + ["add", "claude", *arguments, "--model", "m", "--provider", "claude"]) == 0
+    assert main(base + ["add", "default", *arguments, "--model", "m"]) == 0
+    capsys.readouterr()
+    assert main(base + ["show", "claude"]) == 0
+    assert json.loads(capsys.readouterr().out)["provider"] == "claude"
+    assert main(base + ["show", "default"]) == 0
+    assert json.loads(capsys.readouterr().out)["provider"] == "codex"
+    with pytest.raises(SystemExit):
+        main(base + ["add", "other", *arguments, "--model", "m", "--provider", "unknown"])
+
+
 def test_nonexistent_workspace(runtime, request_data):
     with pytest.raises(LaunchError, match="does not exist"):
         preflight(runtime, replace(request_data, workspace=request_data.workspace + "missing"))
 
 
-async def test_controller_single_process_and_fake_success(runtime, request_data):
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+async def test_controller_single_process_and_fake_success(runtime, request_data, provider):
     controller = LaunchController()
-    source = controller.begin(runtime, replace(request_data, allow_execution=True))
+    source = controller.begin(
+        runtime, replace(request_data, allow_execution=True, provider=provider)
+    )
     with pytest.raises(LaunchError, match="already active"):
         controller.begin(runtime, request_data)
     await consume(source, controller.session)
@@ -222,6 +294,9 @@ async def test_controller_single_process_and_fake_success(runtime, request_data)
     assert controller.session.exit_code == 0
     assert (Path(request_data.workspace) / "docs/example.md").is_file()
     assert request_data.prompt not in repr(controller.session)
+    run = next(iter(controller.session.runs.values()))
+    assert run.provider == provider
+    assert "synthetic-thread-id" not in repr(controller.session)
 
 
 @pytest.mark.parametrize("denied", [False, True])
@@ -333,7 +408,9 @@ def test_source_boundary_and_no_personal_hardcoding():
         source = path.read_text(encoding="utf-8")
         for forbidden in (
             "C:" + "\\Users\\",
-            "gpt-" + "6-sol",
+            "gpt-",
+            "claude-",
+            "--codex" + "-model",
             "shell=" + "True",
             "import " + "ai_agent",
             "from " + "ai_agent",

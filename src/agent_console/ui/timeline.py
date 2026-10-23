@@ -2,7 +2,7 @@ from rich.text import Text
 from textual.widgets import DataTable
 
 from agent_console.models.run import RunState
-from agent_console.presentation import description, event_style
+from agent_console.presentation import component_label, description, event_style
 
 TIMELINE_LIMIT = 1000
 
@@ -30,7 +30,7 @@ class Timeline(DataTable):
             self.add_row(
                 str(event.sequence),
                 f"{event.elapsed_ms / 1000:.3f}s",
-                Text(event.component.capitalize(), style=style),
+                Text(component_label(event.component), style=style),
                 Text(("ERROR · " if style else "") + description(event), style=style),
             )
         if follow or not same_run:

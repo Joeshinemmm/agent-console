@@ -25,6 +25,7 @@ def test_help():
     [
         ("successful_developer_run.jsonl", b"COMPLETED", 0),
         ("failed_run.jsonl", b"FAILED", 1),
+        ("legacy_codex_run.jsonl", b"COMPLETED", 0),
     ],
 )
 def test_plain_cli(filename, status, exit_code):
@@ -32,6 +33,25 @@ def test_plain_cli(filename, status, exit_code):
     assert result.returncode == exit_code
     assert status in result.stdout
     assert b"Traceback" not in result.stderr
+
+
+def test_plain_cli_shows_provider_without_session_identifiers():
+    result = invoke("replay", str(FIXTURES / "successful_developer_run.jsonl"), "--plain")
+    assert result.returncode == 0
+    assert b"LLM turn completed (Claude)" in result.stdout
+    assert b"llm=Completed" in result.stdout
+    assert b"LLM provider: claude" in result.stdout
+    assert b"synthetic-thread-id" not in result.stdout + result.stderr
+    assert b"claude_login" not in result.stdout + result.stderr
+
+
+def test_plain_cli_reads_legacy_codex_records():
+    result = invoke("replay", str(FIXTURES / "legacy_codex_run.jsonl"), "--plain")
+    assert result.returncode == 0
+    assert b"Codex turn completed" in result.stdout
+    assert b"llm=Completed" in result.stdout
+    assert b"codex=" not in result.stdout
+    assert b"LLM provider: codex" in result.stdout
 
 
 def test_cli_stdin(encode_event):

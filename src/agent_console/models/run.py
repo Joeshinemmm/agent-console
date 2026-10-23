@@ -22,6 +22,7 @@ class RunState:
     elapsed_ms: float = 0
     error_count: int = 0
     activity: Event | None = None
+    provider: str | None = None
 
     @property
     def event_count(self) -> int:

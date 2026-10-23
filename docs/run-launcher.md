@@ -7,6 +7,13 @@ Workspace Check, 명시적 승인 후 Developer/Codex 문서 생성, Monitor 완
 개발 당시 패키지 버전은 0.1.0이었으며, Live E2E 성공 후 0.2.0으로 확정했다.
 개발 자동 테스트는 synthetic subprocess만 사용하고 실제 Live 실행은 다시 수행하지 않았다.
 
+**Provider 중립 변경 (Unreleased).** 이후 ai-agent의 LLM 이벤트가 `codex.*`에서 `llm.*`로,
+실행 옵션이 `--provider` / `--model`로 바뀌었다. 현재 Launcher는 provider로 Claude 또는 Codex를
+선택하며, 아래 등록 방법과 실행 계약은 새 방식 기준이다. 위 v0.2.0 Live 검증은 Codex와 이전
+`--codex-model` 명령으로 수행한 기록이다. 새 명령은 Launcher와 같은 argv를 `agent-console run --plain`으로
+실행해 Claude·Codex 각각 Workspace Check와 문서 한 개 생성을 확인했다([provider smoke 기록](provider-smoke.md)).
+Launcher TUI 조작 자체는 synthetic Textual 테스트로만 확인했다.
+
 ## 1. 설치와 Runtime Profile 등록
 
 Agent Console 저장소 root에서 기존 가상환경에 현재 코드를 설치한다.
@@ -19,18 +26,23 @@ Agent Console 저장소 root에서 기존 가상환경에 현재 코드를 설�
 
 아래 두 경로와 모델 이름을 **자신의 별도 ai-agent runtime** 값으로 바꾼다.
 Python은 Agent Console의 Python이 아니라 ai-agent 의존성이 설치된 실행 파일이다.
-기존 ai-agent/Codex 인증을 사용하며 Agent Console에 비밀번호나 API key를 입력하지 않는다.
+ai-agent 쪽에 저장된 provider 로그인(Claude 로그인 또는 Codex용 ChatGPT 로그인)을 그대로 사용하며
+Agent Console에 비밀번호나 API key를 입력하지 않는다.
 
 ```powershell
 .\.venv\Scripts\agent-console.exe profile add local `
   --python "C:/path/to/ai-agent/.venv/Scripts/python.exe" `
   --main "C:/path/to/ai-agent/main.py" `
-  --provider codex --model "your-supported-model" `
+  --provider claude --model "your-supported-model" `
   --verify none --max-retries 0
 .\.venv\Scripts\agent-console.exe profile show local
 .\.venv\Scripts\agent-console.exe profile select local
 .\.venv\Scripts\agent-console.exe launch --profile local
 ```
+
+`--provider`는 `claude` 또는 `codex`이며, 생략하면 ai-agent의 기본값과 같은 `codex`다.
+모델 이름은 provider와 계정 플랜에 따라 다르므로 Agent Console은 모델 기본값을 두지 않는다.
+provider마다 자주 쓰는 모델이 다르면 profile을 provider별로 하나씩 등록해 두면 편하다.
 
 새 설치는 `No runtime configured`로 시작하며 등록 전 실행 버튼은 비활성화된다.
 최초 등록한 profile이 기본값이다. 다른 이름으로 추가하고 `select`로 바꾸거나,
@@ -51,7 +63,14 @@ default_max_retries다. Workspace와 prompt는 저장하지 않는다. 알 수 �
 
 등록/사용 시 Python 및 main 경로가 존재하는 파일인지 검사한다. 등록 자체는 runtime을 실행하지
 않으며 `--help`도 자동 실행하지 않는다. 신뢰하는 runtime을 등록해야 한다. 실제 CLI 호환성은
-다음 Workspace Check에서 확인한다. 모델 지원 목록은 ai-agent/Codex가 최종 판단한다.
+다음 Workspace Check에서 확인한다. 모델 지원 목록은 ai-agent와 선택한 provider가 최종 판단하며
+자동 fallback은 없다.
+
+Launcher의 Provider 칸은 선택한 profile의 provider로 시작한다. 이번 실행만 다른 provider를 고를 수
+있으며, 이때 profile의 모델은 다른 provider의 이름이므로 Model 칸을 비운다. 그 provider에서 쓸
+모델을 직접 입력해야 Start Run이 진행된다. profile의 provider로 되돌리면 profile 모델을 다시 채운다.
+provider를 바꾸면 Allow execution은 OFF로 돌아간다. Workspace Check 명령에는 provider가 들어가지
+않으므로 이전 check 결과는 유지된다. 실행별 provider와 모델 선택은 저장하지 않는다.
 
 ## 2. Live Verification Step 1 — Check Workspace
 
@@ -61,7 +80,7 @@ default_max_retries다. Workspace와 prompt는 저장하지 않는다. 알 수 �
 | --- | --- |
 | Runtime profile | 등록한 local |
 | Workspace | 현재 Agent Console 저장소의 절대 경로 |
-| Task / Provider | Developer / Codex |
+| Task / Provider | Developer / profile의 provider(Claude 또는 Codex) |
 | Model | profile 기본값, 필요하면 이번 실행만 변경 |
 | Verify / Max retries | none / 0 |
 | Allow execution | OFF 유지 |
@@ -94,7 +113,7 @@ git status --short
 Test-Path docs/v0.2-launcher-smoke.md
 ```
 
-Launcher에서 Workspace는 이 저장소, Developer/Codex, 확인한 모델, verify `none`, retries `0`으로
+Launcher에서 Workspace는 이 저장소, Developer와 사용할 provider, 확인한 모델, verify `none`, retries `0`으로
 설정한다. **Allow execution을 직접 ON**으로 바꾸고 아래 synthetic smoke 요청을 입력한다.
 
 ```text
@@ -106,11 +125,12 @@ Launcher에서 시작한 Developer 실행의 문서 생성 확인용이라는 �
 다른 파일 변경, 소스 코드 변경, 의존성 변경, Git commit/push 및 remote 변경은 금지합니다.
 ```
 
-**Start Run** → 확인 창의 Workspace/모델/verify/retries/Execution을 확인 → **Start**를 누른다.
+**Start Run** → 확인 창의 Workspace/Provider/모델/verify/retries/Execution을 확인 → **Start**를 누른다.
 확인 창의 Cancel/Escape는 subprocess를 시작하지 않는다. 실행 중 prompt 입력과 undo 기록은
 비워지고 Allow execution은 OFF로 돌아간다. 별도의 prompt/config/history/log 저장은 없다.
 
-Monitor에서 Main → Developer → Codex 진행, `file.created`, `run.completed`, `COMPLETED`,
+Monitor에서 Main → Developer → LLM 진행(Agents 패널에 `LLM (Claude)`처럼 provider 표시),
+`file.created`, `run.completed`, `COMPLETED`,
 `Process exit 0`, `Errors 0`, `Issues 0`, `[stream ended]`를 확인한다.
 file event에 지원하는 상대 경로가 있으면 Run result에 `+ docs/v0.2-launcher-smoke.md`가 표시된다.
 실행 후 **Back to Launcher**로 돌아가 새 요청을 준비할 수 있다.
@@ -137,7 +157,7 @@ Check:
 
 Run:
 [python, -u, main.py, --workspace, workspace,
- --task, developer, --provider, codex, --codex-model, model,
+ --task, developer, --provider, claude|codex, --model, model,
  --max-retries, 0..3, --verify, none|pytest|web, --output, jsonl,
  (--allow-execution only when checked), --, prompt]
 ```
@@ -145,9 +165,12 @@ Run:
 `asyncio.create_subprocess_exec`는 shell 없이 실행한다. Workspace와 prompt는 각각 하나의 인자이며,
 prompt 앞 `--`로 옵션 주입을 막는다. prompt는 최대 12,000자다. 이는 보안 권한을 부여하는 기능이
 아니며 실제 파일 쓰기·도구·sandbox·Git 정책은 ai-agent가 최종 판단한다.
+`--codex-model`은 ai-agent에서 호환 별칭으로 남아 있지만 Launcher는 사용하지 않는다.
+따라서 `--provider` / `--model`을 모르는 이전 ai-agent에서는 인자 오류로 실행이 실패한다.
 
 verify `none`은 별도 host verification 없음, `pytest`는 pytest 검증,
-`web`은 pytest 및 local web 검증을 뜻한다. Desktop/Training/다른 provider는 이번 Launcher에 없다.
+`web`은 pytest 및 local web 검증을 뜻한다. Desktop/Training Task와 Claude·Codex 외 provider는
+이번 Launcher에 없다.
 
 한 instance당 check/run subprocess 하나만 허용한다. 실행 중 **Cancel Run** 또는 `q`/`Ctrl+C`는
 직접 실행한 child만 terminate하고 필요시 kill한다. descendant 전체 종료는 보장하지 않는다.
@@ -155,7 +178,8 @@ local cancel은 upstream terminal event를 위조하지 않고 `cancelled locall
 표시한다. child exit, terminal event, stream 종료는 독립적으로 표시한다.
 
 Monitor는 기존 parser → Event → reducer → RunState 흐름을 재사용한다. Event에는 원문 message와
-metadata를 보관하지 않으며 workspace/Git boolean과 제한된 상대 파일 경로만 projection한다.
+metadata를 보관하지 않으며 workspace/Git boolean, 제한된 상대 파일 경로, `llm.*`의 provider
+(`claude`/`codex`)만 projection한다. `thread_id`·`auth_type`·`continuation`은 보관하지 않는다.
 Run result는 최근 3개 변경 event를 표시하고 source/diff는 읽지 않는다. 절대 경로·상위 경로 이동·제어문자·
 민감 파일명 패턴·비 ASCII 경로는 표시에서 제외된다. 임의 secret을 모두 탐지하는 필터는 아니다.
 

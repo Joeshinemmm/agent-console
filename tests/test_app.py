@@ -31,6 +31,7 @@ async def settle(app, pilot):
     [
         ("successful_developer_run.jsonl", "COMPLETED"),
         ("failed_run.jsonl", "FAILED"),
+        ("legacy_codex_run.jsonl", "COMPLETED"),
     ],
 )
 async def test_tui_startup_and_panels(size, fixture, status):
@@ -41,6 +42,28 @@ async def test_tui_startup_and_panels(size, fixture, status):
         assert status in str(app.query_one("#run-status", Static).render())
         assert app.query_one("#summary").region.bottom <= size[1]
         assert app.query_one("#activity").region.height > 0
+        await pilot.press("q")
+
+
+@pytest.mark.parametrize(
+    "fixture,agent,event",
+    [
+        ("successful_developer_run.jsonl", "LLM (Claude)", "LLM turn completed (Claude)"),
+        ("legacy_codex_run.jsonl", "LLM (Codex)", "Codex turn completed"),
+    ],
+)
+async def test_tui_llm_provider_and_legacy_names(fixture, agent, event):
+    from test_viewport_acceptance import visible_text
+
+    app = AgentConsole(file_source(FIXTURES / fixture), Session())
+    async with app.run_test(size=(120, 40)) as pilot:
+        await settle(app, pilot)
+        await pilot.pause()
+        assert agent in visible_text(app, app.query_one("#component-scroll"))
+        timeline = visible_text(app, app.query_one(Timeline))
+        assert event in timeline
+        assert "synthetic-thread-id" not in visible_text(app)
+        assert "Codex" not in visible_text(app, app.query_one("#system-status"))
         await pilot.press("q")
 
 

@@ -44,6 +44,22 @@
 합성 화면 검사·사용자 기본 동작 확인과 전문 디자인 검증을 구분하며, 전문 디자인 검증은 미실시다.
 main 반영과 별개로 0.2.1 공식 태그·릴리스는 아직 생성하지 않았다.
 
+### Provider-neutral events and Launcher provider
+
+- ai-agent의 provider 중립 이벤트(`llm.session.*`, `llm.turn.*`)를 LLM component로 표시
+- `llm.*`의 `metadata.provider`는 `claude`/`codex`일 때만 보관하고 Agents 패널·Timeline·plain report에 표시
+- `llm.session.*`의 `thread_id`·`auth_type`·`continuation`은 보관·표시하지 않음
+- 이전 `codex.*` 기록은 Timeline에 원래 이름 그대로 표시하고 Agents 패널에서는 LLM(Codex)으로 집계
+- Runtime Profile·`profile add`·Launcher에서 provider `claude`/`codex` 선택. 생략 시 ai-agent 기본값인 `codex`
+- Launcher에서 profile과 다른 provider를 고르면 profile 모델을 비워 직접 입력을 요구하고 Allow execution을 OFF로 복귀
+- 실행 명령을 `--provider <claude|codex> --model <이름>`으로 변경하고 `--codex-model`은 사용하지 않음.
+  `--provider`/`--model`을 지원하는 ai-agent가 필요
+- synthetic fixture를 `llm.*` 이름으로 갱신하고 과거 형식 확인용 `legacy_codex_run.jsonl` 추가
+
+패키지 버전은 0.2.0을 유지하며 릴리스 번호는 릴리스 시점에 별도로 결정한다.
+2026-10-24 Launcher와 같은 argv를 `agent-console run --plain`으로 실행해 Claude·Codex 각각 Workspace Check와
+문서 한 개 생성을 확인했다([provider smoke 기록](docs/provider-smoke.md)). Launcher TUI 조작은 합성 테스트로만 확인했다.
+
 ## [0.2.0] - 2026-10-06
 
 ### Added

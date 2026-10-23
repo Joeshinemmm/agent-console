@@ -1,7 +1,7 @@
 from rich.text import Text
 
 from agent_console.models.run import RunState
-from agent_console.presentation import STYLES, description
+from agent_console.presentation import STYLES, component_label, description
 from agent_console.state.session import Session
 
 
@@ -16,7 +16,7 @@ def activity_text(run: RunState, session: Session) -> Text:
     elif session.ended:
         result.append("Stream ended without a terminal result", style="yellow")
     elif run.activity:
-        result = Text(run.activity.component.capitalize() + "\n", style="bold")
+        result = Text(component_label(run.activity.component) + "\n", style="bold")
         result.append(description(run.activity))
         return result
     else:
